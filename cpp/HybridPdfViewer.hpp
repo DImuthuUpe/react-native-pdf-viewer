@@ -7,7 +7,7 @@ namespace margelo::nitro::pdfviewer {
 class HybridPdfViewer : public HybridPdfViewerSpec {
     public:
         HybridPdfViewer() : HybridObject(TAG), HybridPdfViewerSpec() {
-            len = 1024 * 1024 * 4; // Initialize the length
+            len = 2048 * 2048 * 4; // Initialize the length
             publ = new uint8_t[len]; // Allocate memory
             wrappingArrayBuffer = ArrayBuffer::wrap(publ, len, [=]() {
                 delete[] publ; // Cleanup lambda
@@ -17,7 +17,9 @@ class HybridPdfViewer : public HybridPdfViewerSpec {
        
         double sum(double a, double b) override;
         std::shared_ptr<ArrayBuffer> getBitmap(const std::string& filePath, double width, double height, double x, double y) override;
-
+        double getPageCount(const std::string& filePath) override;
+        std::vector<std::tuple<double, double>> getAllPageDimensions(const std::string& filePath) override;
+    
         ~HybridPdfViewer() {
             FPDF_DestroyLibrary();
         }
