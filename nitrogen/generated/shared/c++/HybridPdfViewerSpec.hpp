@@ -54,6 +54,7 @@ namespace margelo::nitro::pdfviewer {
       // Methods
       virtual double sum(double num1, double num2) = 0;
       virtual std::shared_ptr<ArrayBuffer> getBitmap(const std::string& filePath, double width, double height, double x, double y) = 0;
+      virtual std::shared_ptr<ArrayBuffer> getTile(const std::string& filePath, double pageNumber, double row, double column, double displayWidth, double displayHeight, double scale) = 0;
       virtual double getPageCount(const std::string& filePath) = 0;
       virtual std::vector<std::tuple<double, double>> getAllPageDimensions(const std::string& filePath) = 0;
 

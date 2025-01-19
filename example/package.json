@@ -15,7 +15,9 @@
     "react": "18.3.1",
     "react-native": "0.76.5",
     "react-native-fs": "^2.20.0",
-    "react-native-nitro-modules": "*"
+    "react-native-gesture-handler": "^2.22.0",
+    "react-native-nitro-modules": "*",
+    "react-native-reanimated": "^3.16.7"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
