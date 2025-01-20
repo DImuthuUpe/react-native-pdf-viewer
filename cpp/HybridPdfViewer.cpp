@@ -68,7 +68,8 @@ std::vector<std::tuple<double, double>> HybridPdfViewer::getAllPageDimensions(co
 int tileWidth = 512;
 int tileHeight = 512;
 
-std::shared_ptr<ArrayBuffer> HybridPdfViewer::getTile(const std::string& filePath, double pageNumber, double row, double column, double displayWidth, double displayHeight, double scale) {
+std::shared_ptr<ArrayBuffer> HybridPdfViewer::getTile(const std::string& filePath, double pageNumber, double row, double column, 
+                            double displayWidth, double displayHeight, double scale) {
     
     
     size_t len = tileWidth * tileHeight * 4; // Initialize the length
@@ -104,10 +105,11 @@ std::shared_ptr<ArrayBuffer> HybridPdfViewer::getTile(const std::string& filePat
                  
     FPDFBitmap_FillRect(bitmapHandle, 0, 0, tileWidth, tileHeight, 0xffffffff);
     
-    float xScale = 2;
-    float yScale = 2;
+    float xScale = scale * 2 * displayWidth / width;
+    float yScale = scale * 2 * displayWidth / width;
     float xTranslate = column * tileWidth;
     float yTranslate = row * tileHeight;
+    std::cout << "Page matric scale " << scale << " xTranslate " << xTranslate << " yTranslate " << yTranslate << std::endl;
     FS_MATRIX matrix = {xScale, 0.0, 0.0, yScale, xTranslate, yTranslate}; // Flipped Y-axis.
     FS_RECTF clip = {0, 0, (float)tileWidth, (float)tileHeight};
 
@@ -117,7 +119,7 @@ std::shared_ptr<ArrayBuffer> HybridPdfViewer::getTile(const std::string& filePat
     FPDF_ClosePage(page);
 
     if (pdfDoc) {
-       std::cout << "Closed document 4 on path " << filePath << std::endl;
+       //std::cout << "Closed document 4 on path " << filePath << std::endl;
        FPDF_CloseDocument(pdfDoc);
     }
     

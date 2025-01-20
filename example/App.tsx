@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Text, View, StyleSheet, ScrollView, Dimensions } from 'react-native';
-import { Canvas, Circle, Group, Skia, AlphaType, ColorType, Image, Rect } from "@shopify/react-native-skia";
+import { Canvas, Circle, Group, Skia, AlphaType, ColorType, Image, Rect, Fill } from "@shopify/react-native-skia";
 import { PdfViewer } from 'react-native-pdf-viewer';
 import RNFS from 'react-native-fs';
 import Animated, {
+  runOnJS,
   useAnimatedProps,
+  useAnimatedReaction,
   useAnimatedStyle,
   useDerivedValue,
   useSharedValue,
@@ -17,88 +19,64 @@ import {
   GestureHandlerRootView,
 } from 'react-native-gesture-handler';
 import PdfPage from './components/PdfPage';
+import { identity4 } from 'react-native-redash';
 
 function App(): React.JSX.Element {
   
-  const fileName = 'sample.pdf'; // Relative to assets
-  const filePath = `${RNFS.MainBundlePath}/${fileName}`;
-  const tileSize = 512
   const { width, height } = Dimensions.get("window");
 
-  //const buf = PdfViewer.getBitmap(filePath, tileSize, tileSize, 0, 0);
-  const buf = PdfViewer.getTile(filePath, 1, 0, 0, width, height, 1);
-  const ints = new Uint8Array(buf);
-
-  //console.log("Ints: ", ints);
-
-  const data = Skia.Data.fromBytes(ints);
-  const image = Skia.Image.MakeImage(
-  {
-      width: tileSize,
-      height: tileSize,
-      alphaType: AlphaType.Opaque,
-      colorType: ColorType.RGBA_8888,
-  },
-  data,
-  tileSize * 4
-  );
-
-  
-  const pageDims = PdfViewer.getAllPageDimensions(filePath);
-  console.log("Page dimensions: ", pageDims);
-
-  console.log("Image: is ", buf.byteLength);
-  //console.log("Window width: ", width, " height ", height , " scale ", scale); 
-
-
-  const pressed = useSharedValue<boolean>(false);
-  const offsetX = useSharedValue<number>(0);
-  const offsetY = useSharedValue<number>(0);
-  
-  const scale = useSharedValue<number>(1);
-
-  const scaleGesture = Gesture.Pinch()
-  .onChange((event) => {
-    scale.value = event.scale;
-  }
-  );
-
-  const pan = Gesture.Pan()
-    .onBegin(() => {
-    })
-    .onChange((event) => {
-      offsetX.value += event.changeX;
-      offsetY.value += event.changeY;
-    })
-    .onFinalize(() => {
-      //offsetY.value = withSpring(0);
-    });
-
-  const animatedStyles = useAnimatedStyle(() => ({
-    backgroundColor: pressed.value ? 'blue' : 'green',
-    transform: [
-      {scale: scale.value},
-      { translateX: offsetX.value },
-      { translateY: offsetY.value },],
+  const radius = 30;
+  const x = useSharedValue(100);
+  const y = useSharedValue(100);
+  const scale = useSharedValue(1);
+  const pinchZooming = useSharedValue(false);
+  // This style will be applied to the "invisible" animated view
+  // that overlays the ball
+  const style = useAnimatedStyle(() => ({
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: width,
+    height: height,
+    //transform: [{ translateX: x.value }, { translateY: y.value }],
   }));
-
-  const animatedProps = useAnimatedProps(() => {
-    return {
-      scale: scale.value,
-    };
+  // The gesture handler for the ball
+  const panGesture = Gesture.Pan().onChange((e) => {
+    x.value += e.changeX;
+    y.value += e.changeY;
   });
 
-  const derivedOffsetY = useDerivedValue(() => offsetY.value + 400);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const refreshTrigger = useSharedValue(0);
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+  const scaleGesture = Gesture.Pinch().onChange((e) => {
+    scale.value = e.scale;
+    pinchZooming.value = true;
+  }).onEnd(() => { 
+    refreshTrigger.value += 1;
+    pinchZooming.value = false;
+  });
 
-  const calculatedWidth = useDerivedValue(() => width * scale.value);
+  useAnimatedReaction(
+    () => refreshTrigger.value,
+    (triggerValue) => {
+      if (triggerValue > 0) {
+        runOnJS(setRefreshKey)(triggerValue); // Synchronize React state
+      }
+    }
+  );
+
   return (
-    //<VirtualizedCanvas />
-    <GestureHandlerRootView style={styles.container}>
-      <View style={styles.container}>
-        <GestureDetector gesture={Gesture.Race(pan, scaleGesture)}>
-          <Animated.View style={{backgroundColor: 'pink'}}>
-            <PdfPage pageWidth={width} pageHeight={height} pageNumber={1} animatedProps={animatedProps} />
-          </Animated.View>
+    <GestureHandlerRootView>
+      <View style={{ flex: 1 }}>
+        <Canvas style={{ flex: 1 }}>
+          <Fill color="pink" />
+          <PdfPage pageWidth={width} pageHeight={height} pageNumber={1} translateX={x} translateY={y} scale={scale} refreshKey={refreshKey} pinchZooming={pinchZooming} />
+
+          <Circle cx={x} cy={y} r={radius} color="cyan" />
+        </Canvas>
+        <GestureDetector gesture={Gesture.Race(panGesture, scaleGesture)}>
+          <Animated.View style={style} />
         </GestureDetector>
       </View>
     </GestureHandlerRootView>
