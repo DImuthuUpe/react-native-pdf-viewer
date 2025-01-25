@@ -65,19 +65,18 @@ std::vector<std::tuple<double, double>> HybridPdfViewer::getAllPageDimensions(co
 
 }
 
-int tileWidth = 512;
-int tileHeight = 512;
-
-std::shared_ptr<ArrayBuffer> HybridPdfViewer::getTile(const std::string& filePath, double pageNumber, double row, double column, 
-                            double displayWidth, double displayHeight, double scale) {
+std::shared_ptr<ArrayBuffer> HybridPdfViewer::getTile(const std::string& filePath, double pageNumber, double row, double column,
+                            double displayWidth, double tileSizeD, double scale, double version, double tiles) {
     
     
-    size_t len = tileWidth * tileHeight * 4; // Initialize the length
+    int tileSize = (int)tileSizeD;
+    size_t len = tileSize * tileSize * 4; // Initialize the length
     uint8_t* stream = new uint8_t[len]; // Allocate memory
     std::shared_ptr<ArrayBuffer> buf = ArrayBuffer::wrap(stream, len, [=]() {
-        std::cout << "Clearing the TILE buffer" << std::endl;
+        std::cout << "Clearing the buffer version "<< version << " tiles " << tiles <<" row " << row << " column " << column << std::endl;
         delete[] stream; // Cleanup lambda
     });
+    
     
     const char* pdf_path = filePath.c_str();
     FPDF_DOCUMENT pdfDoc = FPDF_LoadDocument(pdf_path, nullptr);
@@ -89,29 +88,28 @@ std::shared_ptr<ArrayBuffer> HybridPdfViewer::getTile(const std::string& filePat
     FPDF_PAGE page = FPDF_LoadPage(pdfDoc, (int)pageNumber);
     if (!page) {
         std::cerr << "Failed to load the page for document." << std::endl;
-
     }
     
     double width = FPDF_GetPageWidth(page);
     double height = FPDF_GetPageHeight(page);
-    std::cout << "Page width " << width << " height " << height << std::endl;
-    int stride = tileWidth * 4;
-    FPDF_BITMAP bitmapHandle = FPDFBitmap_CreateEx(tileWidth, tileHeight, FPDFBitmap_BGRA, buf->data(), stride);
+    std::cout << "Scale " << scale << " Page width " << width << " height " << height << "display width " << displayWidth << std::endl;
+    int stride = tileSize * 4;
+    FPDF_BITMAP bitmapHandle = FPDFBitmap_CreateEx(tileSize, tileSize, FPDFBitmap_BGRA, buf->data(), stride);
                  
     if (!bitmapHandle) {
         std::cerr << "Failed to load the bitmap handle for document." << std::endl;
 
     }
                  
-    FPDFBitmap_FillRect(bitmapHandle, 0, 0, tileWidth, tileHeight, 0xffffffff);
+    FPDFBitmap_FillRect(bitmapHandle, 0, 0, tileSize, tileSize, 0xffffffff);
     
-    float xScale = scale * 2 * displayWidth / width;
-    float yScale = scale * 2 * displayWidth / width;
-    float xTranslate = column * tileWidth;
-    float yTranslate = row * tileHeight;
+    float xScale = scale * 2  * displayWidth / width;
+    float yScale = scale * 2  * displayWidth / width;
+    float xTranslate = column * tileSizeD;
+    float yTranslate = row * tileSizeD;
     std::cout << "Page matric scale " << scale << " xTranslate " << xTranslate << " yTranslate " << yTranslate << std::endl;
     FS_MATRIX matrix = {xScale, 0.0, 0.0, yScale, xTranslate, yTranslate}; // Flipped Y-axis.
-    FS_RECTF clip = {0, 0, (float)tileWidth, (float)tileHeight};
+    FS_RECTF clip = {0, 0, (float)tileSize, (float)tileSize};
 
     FPDF_RenderPageBitmapWithMatrix(bitmapHandle, page, &matrix, &clip, 0);
     
@@ -122,6 +120,8 @@ std::shared_ptr<ArrayBuffer> HybridPdfViewer::getTile(const std::string& filePat
        //std::cout << "Closed document 4 on path " << filePath << std::endl;
        FPDF_CloseDocument(pdfDoc);
     }
+     
+    
     
     return buf;
 }

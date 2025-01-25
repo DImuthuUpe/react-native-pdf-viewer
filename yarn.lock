@@ -7567,6 +7567,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"lru_map@npm:^0.4.1":
+  version: 0.4.1
+  resolution: "lru_map@npm:0.4.1"
+  checksum: a3eb277ca7e673c7d6e78578193cc7c67a7410978c260f9b49418aa2053c7cb025d98326d3e74817119cb4ef5f114e2e05da58b7badfbde4a7b4d566c5f294e5
+  languageName: node
+  linkType: hard
+
 "macos-release@npm:^3.1.0":
   version: 3.3.0
   resolution: "macos-release@npm:3.3.0"
@@ -9476,6 +9483,7 @@ __metadata:
     "@react-native/metro-config": 0.76.5
     "@react-native/typescript-config": 0.76.5
     "@shopify/react-native-skia": ^1.9.0
+    lru_map: ^0.4.1
     react: 18.3.1
     react-native: 0.76.5
     react-native-fs: ^2.20.0

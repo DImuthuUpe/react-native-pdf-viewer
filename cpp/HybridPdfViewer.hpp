@@ -21,7 +21,7 @@ class HybridPdfViewer : public HybridPdfViewerSpec {
         double getPageCount(const std::string& filePath) override;
         std::vector<std::tuple<double, double>> getAllPageDimensions(const std::string& filePath) override;
         
-        std::shared_ptr<ArrayBuffer> getTile(const std::string& filePath, double pageNumber, double row, double column, double displayWidth, double displayHeight, double scale) override;
+        std::shared_ptr<ArrayBuffer> getTile(const std::string& filePath, double pageNumber, double row, double column, double displayWidth, double tileSize, double scale, double version, double tiles) override;
         ~HybridPdfViewer() {
             FPDF_DestroyLibrary();
         }

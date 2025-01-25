@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@shopify/react-native-skia": "^1.9.0",
+    "lru_map": "^0.4.1",
     "react": "18.3.1",
     "react-native": "0.76.5",
     "react-native-fs": "^2.20.0",
