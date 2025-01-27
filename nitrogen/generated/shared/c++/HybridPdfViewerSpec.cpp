@@ -14,8 +14,8 @@ namespace margelo::nitro::pdfviewer {
     HybridObject::loadHybridMethods();
     // load custom methods/properties
     registerHybrids(this, [](Prototype& prototype) {
-      prototype.registerHybridMethod("sum", &HybridPdfViewerSpec::sum);
-      prototype.registerHybridMethod("getBitmap", &HybridPdfViewerSpec::getBitmap);
+      prototype.registerHybridMethod("openPdf", &HybridPdfViewerSpec::openPdf);
+      prototype.registerHybridMethod("closePdf", &HybridPdfViewerSpec::closePdf);
       prototype.registerHybridMethod("getTile", &HybridPdfViewerSpec::getTile);
       prototype.registerHybridMethod("getPageCount", &HybridPdfViewerSpec::getPageCount);
       prototype.registerHybridMethod("getAllPageDimensions", &HybridPdfViewerSpec::getAllPageDimensions);

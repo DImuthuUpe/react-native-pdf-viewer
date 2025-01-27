@@ -16,12 +16,12 @@ class HybridPdfViewer : public HybridPdfViewerSpec {
             FPDF_InitLibrary();
         }
        
-        double sum(double a, double b) override;
-        std::shared_ptr<ArrayBuffer> getBitmap(const std::string& filePath, double width, double height, double x, double y) override;
+        void openPdf(const std::string& filePath) override;
+        void closePdf() override;
         double getPageCount(const std::string& filePath) override;
         std::vector<std::tuple<double, double>> getAllPageDimensions(const std::string& filePath) override;
         
-        std::shared_ptr<ArrayBuffer> getTile(const std::string& filePath, double pageNumber, double row, double column, double displayWidth, double tileSize, double scale, double version, double tiles) override;
+        std::shared_ptr<ArrayBuffer> getTile(double pageNumber, double row, double column, double displayWidth, double tileSize, double scale) override;
         ~HybridPdfViewer() {
             FPDF_DestroyLibrary();
         }
