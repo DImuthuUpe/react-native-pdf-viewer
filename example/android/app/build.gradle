@@ -1,6 +1,7 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
+apply from: '../../../nitrogen/generated/android/PdfViewer+autolinking.gradle'
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -51,7 +52,7 @@ react {
     // hermesFlags = ["-O", "-output-source-map"]
 
     /* Autolinking */
-    autolinkLibrariesWithApp()
+    //autolinkLibrariesWithApp()
 }
 
 /**
@@ -107,6 +108,10 @@ android {
     }
 }
 
+project.ext.react = [
+    enableHermes: true,
+]
+
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
@@ -116,4 +121,10 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+
+    implementation project(':react-native-fs')
+    implementation project(':@shopify_react-native-skia')
+    implementation project(':react-native-gesture-handler')
+    implementation project(':react-native-reanimated')
+
 }
