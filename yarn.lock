@@ -9434,9 +9434,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-native-gesture-handler@npm:^2.22.0":
-  version: 2.22.0
-  resolution: "react-native-gesture-handler@npm:2.22.0"
+"react-native-gesture-handler@npm:^2.22.1":
+  version: 2.22.1
+  resolution: "react-native-gesture-handler@npm:2.22.1"
   dependencies:
     "@egjs/hammerjs": ^2.0.17
     hoist-non-react-statics: ^3.3.0
@@ -9444,7 +9444,7 @@ __metadata:
   peerDependencies:
     react: "*"
     react-native: "*"
-  checksum: ad4ada2221d16ce56ecff0c5ab1d4a0220937e9e408c85729d9150b2eb3fdc0c5a92597bd4068a9b3e1b951380c28691f5e401071cc257c69008d39c9269f0d4
+  checksum: 31be1a30d35b20dc72426147b3c5b8a2bf23a4666a4208208c423baec098850564e8cb555d360b87435ffe65a4f51f84e5471bf2140979c84589bd787cf5cfe0
   languageName: node
   linkType: hard
 
@@ -9487,9 +9487,9 @@ __metadata:
     react: 18.3.1
     react-native: 0.76.5
     react-native-fs: ^2.20.0
-    react-native-gesture-handler: ^2.22.0
+    react-native-gesture-handler: ^2.22.1
     react-native-nitro-modules: "*"
-    react-native-reanimated: ^3.16.7
+    react-native-reanimated: latest
     react-native-redash: ^18.1.3
   languageName: unknown
   linkType: soft
@@ -9517,7 +9517,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"react-native-reanimated@npm:^3.16.7":
+"react-native-reanimated@npm:latest":
   version: 3.16.7
   resolution: "react-native-reanimated@npm:3.16.7"
   dependencies:
