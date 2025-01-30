@@ -4,15 +4,3 @@ extensions.configure(com.facebook.react.ReactSettingsExtension){ ex -> ex.autoli
 rootProject.name = 'PdfViewerExample'
 include ':app'
 includeBuild('../../node_modules/@react-native/gradle-plugin')
-include ':react-native-fs'
-project(':react-native-fs').projectDir = new File(settingsDir, '../node_modules/react-native-fs/android')
-include ':@shopify_react-native-skia'
-project(':@shopify_react-native-skia').projectDir = new File(rootProject.projectDir, '../node_modules/@shopify/react-native-skia/android')
-include ':react-native-gesture-handler'
-project(':react-native-gesture-handler').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-gesture-handler/android')
-include ':react-native-reanimated'
-project(':react-native-reanimated').projectDir = new File(rootProject.projectDir, '../node_modules/react-native-reanimated/android')
-include ':react-native-nitro-modules'
-project(':react-native-nitro-modules').projectDir = new File(rootProject.projectDir, '../../node_modules/react-native-nitro-modules/android')
-include ':react-native-pdf-viewer'
-project(':react-native-pdf-viewer').projectDir = new File(rootProject.projectDir, '../../android')

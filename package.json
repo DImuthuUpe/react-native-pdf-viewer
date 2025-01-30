@@ -55,11 +55,11 @@
     "@release-it/conventional-changelog": "^8.0.1",
     "@types/jest": "^29.5.12",
     "@types/react": "^18.3.4",
-    "nitro-codegen": "0.20.1",
+    "nitro-codegen": "0.21.0",
     "react": "^18.3.1",
-    "react-native": "^0.76.5",
+    "react-native": "^0.77.0",
     "react-native-builder-bob": "^0.35.2",
-    "react-native-nitro-modules": "0.20.1",
+    "react-native-nitro-modules": "0.21.0",
     "release-it": "^17.6.0",
     "typescript": "5.0.4"
   },
@@ -164,5 +164,9 @@
       ]
     ]
   },
-  "packageManager": "yarn@3.6.1"
+  "packageManager": "yarn@3.6.1",
+  "dependencies": {
+    "@shopify/react-native-skia": "^1.11.2",
+    "react-native-gesture-handler": "^2.22.1"
+  }
 }

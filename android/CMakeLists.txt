@@ -20,6 +20,7 @@ include(${CMAKE_SOURCE_DIR}/../nitrogen/generated/android/PdfViewer+autolinking.
 include_directories(
         "src/main/cpp"
         "../cpp"
+        "../pefiumlibs/android/include"
 )
 
 find_library(LOG_LIB log)
@@ -28,5 +29,5 @@ find_library(LOG_LIB log)
 target_link_libraries(
         ${PACKAGE_NAME}
         ${LOG_LIB}
-        android                                   # <-- Android core
+        android                                 # <-- Android core
 )
