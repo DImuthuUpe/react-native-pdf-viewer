@@ -30,4 +30,5 @@ target_link_libraries(
         ${PACKAGE_NAME}
         ${LOG_LIB}
         android                                 # <-- Android core
+        /Users/dwannipu/code/react-native-pdf-viewer/pefiumlibs/android/lib/arm64-v8a/libpdfium.so
 )
