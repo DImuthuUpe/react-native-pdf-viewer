@@ -1,4 +1,10 @@
 const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');
+
+const {
+    wrapWithReanimatedMetroConfig,
+  } = require('react-native-reanimated/metro-config');
+
+  
 const path = require('path');
 
 // Define additional node module lookup directories
@@ -16,4 +22,4 @@ const customConfig = {
   watchFolders,
 };
 
-module.exports = mergeConfig(getDefaultConfig(__dirname), customConfig);
+module.exports = wrapWithReanimatedMetroConfig(mergeConfig(getDefaultConfig(__dirname), customConfig));

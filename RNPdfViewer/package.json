@@ -10,10 +10,13 @@
     "test": "jest"
   },
   "dependencies": {
+    "@shopify/react-native-skia": "^1.11.3",
     "react": "18.3.1",
     "react-native": "0.77.0",
+    "react-native-gesture-handler": "^2.22.1",
     "react-native-nitro-modules": "^0.21.0",
-    "react-native-pdfium": "file:../react-native-pdfium"
+    "react-native-pdfium": "file:../react-native-pdfium",
+    "react-native-reanimated": "^3.16.7"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
