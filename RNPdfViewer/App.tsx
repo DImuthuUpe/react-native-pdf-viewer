@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Dimensions } from 'react-native';
+import { View, StyleSheet, Dimensions, Platform } from 'react-native';
 import { Canvas, Skia, AlphaType, ColorType, Fill, Image, SkImage, Rect, SkData } from '@shopify/react-native-skia';
 import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, {
@@ -16,7 +16,22 @@ const tileCache = new TileCache(100,  tileSize);
 const thumbnailCache = new Map<string, [SkData, SkImage]>();
 
 const fileName = 'sample.pdf'; // Relative to assets
-const filePath = `${RNFS.MainBundlePath}/${fileName}`;
+let filePath = '';
+
+if (Platform.OS === 'ios') {
+  filePath = `${RNFS.MainBundlePath}/${fileName}`;
+} else {
+  filePath = `${RNFS.DocumentDirectoryPath}/${fileName}`;
+  RNFS.copyFileAssets(fileName, filePath)
+    .then(() => {
+      console.log('Asset copied to:', filePath);
+    })
+    .catch((err) => {
+      console.error('Error copying asset:', err);
+    });
+}
+
+
 
 const {width, height} = Dimensions.get('window');
 
