@@ -13,9 +13,13 @@
 #error NitroModules cannot be found! Are you sure you installed NitroModules properly?
 #endif
 
+// Forward declaration of `ArrayBuffer` to properly resolve imports.
+namespace NitroModules { class ArrayBuffer; }
 
-
-
+#include <string>
+#include <NitroModules/ArrayBuffer.hpp>
+#include <vector>
+#include <tuple>
 
 namespace margelo::nitro::pdfium {
 
@@ -49,6 +53,11 @@ namespace margelo::nitro::pdfium {
     public:
       // Methods
       virtual double add(double a, double b) = 0;
+      virtual void openPdf(const std::string& filePath) = 0;
+      virtual void closePdf() = 0;
+      virtual std::shared_ptr<ArrayBuffer> getTile(double pageNumber, double row, double column, double displayWidth, double tileSize, double scale) = 0;
+      virtual double getPageCount(const std::string& filePath) = 0;
+      virtual std::vector<std::tuple<double, double>> getAllPageDimensions(const std::string& filePath) = 0;
 
     protected:
       // Hybrid Setup
