@@ -1,0 +1,23 @@
+{
+  "$schema": "https://nitro.margelo.com/nitro.schema.json",
+  "cxxNamespace": [
+    "pdfium"
+  ],
+  "ios": {
+    "iosModuleName": "NitroPdfium"
+  },
+  "android": {
+    "androidNamespace": [
+      "pdfium"
+    ],
+    "androidCxxLibName": "NitroPdfium"
+  },
+  "autolinking": {
+    "PdfiumUtil": {
+      "cpp": "HybridPdfiumUtil"
+    }
+  },
+  "ignorePaths": [
+    "**/node_modules"
+  ]
+}
