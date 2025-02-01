@@ -13,6 +13,7 @@
     "@shopify/react-native-skia": "^1.11.3",
     "react": "18.3.1",
     "react-native": "0.77.0",
+    "react-native-fs": "^2.20.0",
     "react-native-gesture-handler": "^2.22.1",
     "react-native-nitro-modules": "^0.21.0",
     "react-native-pdfium": "file:../react-native-pdfium",
