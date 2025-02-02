@@ -70,24 +70,23 @@ const tiles = Array.from({ length: NUM_TILES * PAGE_COUNT }, (_, totalTiles) => 
 
 function App(): React.JSX.Element {
 
-  const matrix = useSharedValue(Matrix4());
   const origin = useSharedValue({ x: 0, y: 0 });
   const offset = useSharedValue(Matrix4());
-  const decayY = useSharedValue(0);
+
+  const offsetX = useSharedValue<number>(0);
+  const offsetY = useSharedValue<number>(0);
   
-  const combinedMatrix = useDerivedValue(() => {
-    // Create a translation matrix from the decaying Y value.
-    const decayMatrix = translate(0, decayY.value);
-    // Combine the decay translation with the base matrix.
-    return multiply4(decayMatrix, matrix.value);
-  });
-
-
+  const matrix = useSharedValue(Matrix4());
 
   const panGesture = Gesture.Pan().onChange((e) => {
-    matrix.value = multiply4(translate(e.changeX, e.changeY), matrix.value);
+    offsetX.value += e.changeX;
+    offsetY.value += e.changeY;
   }).onEnd((e) => {
-    decayY.value = withDecay({
+    offsetX.value = withDecay({
+      velocity: e.velocityX
+    });
+
+    offsetY.value = withDecay({
       velocity: e.velocityY
     });
   });
@@ -105,11 +104,16 @@ function App(): React.JSX.Element {
   });
 
 
+  const animatedMat = useDerivedValue(() => {
+    // Update the matrix with decaying values. https://github.com/wcandillon/can-it-be-done-in-react-native/issues/174
+    return multiply4(translate(offsetX.value, offsetY.value), matrix.value);
+  });
+
   return (  
     <GestureHandlerRootView style={{ flex: 1 }}>
       <View style={{ flex: 1 }}>
         <Canvas style={{ flex: 1, backgroundColor: 'gray' }}> 
-          <Group matrix={combinedMatrix}>
+          <Group matrix={animatedMat}>
           {tiles.map((tile) => (
             <Image key={tile.id} x={tile.x} y={tile.y} width={tile.width} height={tile.height} image={tile.tileData[0] as SkImage} />
           ))}
@@ -123,6 +127,16 @@ function App(): React.JSX.Element {
   
 };
 
+/*
+<Group>
+            {tiles.map((tile) => (
+              <Image key={tile.id} 
+              x={useDerivedValue(() => tile.x * scaleVal.value + offsetX.value)} 
+              y={useDerivedValue(() => tile.y * scaleVal.value + offsetY.value)} 
+              width={useDerivedValue(() => tile.width * scaleVal.value)} 
+              height={useDerivedValue(() => tile.height * scaleVal.value)} image={tile.tileData[0] as SkImage} />
+            ))}
+*/
 const styles = StyleSheet.create({
   box: {
     backgroundColor: '#b58df1',
