@@ -5,42 +5,35 @@ namespace margelo::nitro::pdfium {
         return a + b;
     }
 
-    double HybridPdfiumUtil::getPageCount(const std::string& filePath) {
-        const char* pdf_path = filePath.c_str();
-        FPDF_DOCUMENT pdfDoc = FPDF_LoadDocument(pdf_path, nullptr);
-
-        if (!pdfDoc) {
+    double HybridPdfiumUtil::getPageCount() {
+        
+        if (m_pdfDoc == nullptr) {
             std::cerr << "Failed to load the PDF document." << std::endl;
+            return 0;
         }
         
-        int page_count = FPDF_GetPageCount(pdfDoc);
-        
-        if (pdfDoc) {
-            std::cout << "Closed document on path " << filePath << std::endl;
-            FPDF_CloseDocument(pdfDoc);
-        }
+        int page_count = FPDF_GetPageCount(m_pdfDoc);
         
         return page_count;
     }
 
-    std::vector<std::tuple<double, double>> HybridPdfiumUtil::getAllPageDimensions(const std::string& filePath) {
-        const char* pdf_path = filePath.c_str();
-        FPDF_DOCUMENT pdfDoc = FPDF_LoadDocument(pdf_path, nullptr);
-
-        if (!pdfDoc) {
-            std::cerr << "Failed to load the PDF document." << std::endl;
+    std::vector<std::tuple<double, double>> HybridPdfiumUtil::getAllPageDimensions() {
+        
+        // Vector to store dimensions
+        std::vector<std::tuple<double, double>> pageDimensions;
+        
+        if (m_pdfDoc == nullptr) {
+            std::cerr << "No PDF document was loaded" << std::endl;
+            return pageDimensions;
         }
         
         // Get the total number of pages
-        int pageCount = FPDF_GetPageCount(pdfDoc);
-
-        // Vector to store dimensions
-        std::vector<std::tuple<double, double>> pageDimensions;
+        int pageCount = FPDF_GetPageCount(m_pdfDoc);
 
         // Iterate over all pages
         for (int i = 0; i < pageCount; ++i) {
             // Load the page
-            FPDF_PAGE page = FPDF_LoadPage(pdfDoc, i);
+            FPDF_PAGE page = FPDF_LoadPage(m_pdfDoc, i);
             if (!page) {
                 std::cerr << "Failed to load page " << i << "." << std::endl;
                 continue;
@@ -57,11 +50,7 @@ namespace margelo::nitro::pdfium {
             FPDF_ClosePage(page);
         }
 
-        // Close the PDF document
-        FPDF_CloseDocument(pdfDoc);
-
         return pageDimensions;
-
     }
 
 

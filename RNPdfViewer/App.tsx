@@ -48,7 +48,7 @@ const NUM_TILES = 140;
 const NUM_COLUMNS = 10;
 const NUM_ROWS = NUM_TILES / NUM_COLUMNS;
 const PAGE_GAP = 20;
-const PAGE_COUNT = PdfiumModule.getPageCount(filePath);
+const PAGE_COUNT = PdfiumModule.getPageCount();
 
 // Create an array of tile objects with position and image URI.
 // (Replace the URI with your actual image sources.)

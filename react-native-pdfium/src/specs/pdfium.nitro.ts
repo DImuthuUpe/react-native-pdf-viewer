@@ -5,6 +5,6 @@ export interface PdfiumUtil extends HybridObject<{ ios: 'c++', android: 'c++' }>
     openPdf(filePath: string): void
     closePdf(): void
     getTile(pageNumber: number, row: number, column: number, displayWidth: number, tileSize: number, scale: number): ArrayBuffer
-    getPageCount(filePath: string): number
-    getAllPageDimensions(filePath: string): [number, number][]
+    getPageCount(): number
+    getAllPageDimensions(): [number, number][]
 }
