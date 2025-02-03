@@ -64,7 +64,7 @@ const tiles = Array.from({ length: NUM_TILES * PAGE_COUNT }, (_, totalTiles) => 
     width: TILE_SIZE,
     height: TILE_SIZE,
     color: i % 2 === 0 ? "red" : "blue",
-    tileData: getTile(row, col, 1, pageNumber + 1, TILE_SIZE, 1000),
+    tileData: getTile(row, col, 1, pageNumber, TILE_SIZE, 1000),
   };
 });
 
