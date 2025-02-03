@@ -64,17 +64,18 @@ namespace margelo::nitro::pdfium {
 
     }
 
-    FPDF_DOCUMENT pdfDoc;
 
     void HybridPdfiumUtil::openPdf(const std::string& filePath) {
+        if (m_pdfDoc != nullptr) {
+            FPDF_CloseDocument(m_pdfDoc);
+        }
         const char* pdf_path = filePath.c_str();
-        //if (!pdfDoc) {
-        pdfDoc = FPDF_LoadDocument(pdf_path, nullptr);
-        //}
+        m_pdfDoc = FPDF_LoadDocument(pdf_path, nullptr);
     }
+
     void HybridPdfiumUtil::closePdf() {
-        if (pdfDoc) {
-        FPDF_CloseDocument(pdfDoc);
+        if (m_pdfDoc!= nullptr) {
+            FPDF_CloseDocument(m_pdfDoc);
         }
     }
 
@@ -85,16 +86,17 @@ namespace margelo::nitro::pdfium {
         size_t len = tileSize * tileSize * 4; // Initialize the length
         uint8_t* stream = new uint8_t[len]; // Allocate memory
         std::shared_ptr<ArrayBuffer> buf = ArrayBuffer::wrap(stream, len, [=]() {
-            std::cout << "Clearing the buffer version " << " row " << row << " column " << column << std::endl;
+            //std::cout << "Clearing the buffer version " << " row " << row << " column " << column << std::endl;
             delete[] stream; // Cleanup lambda
         });
         
         
-        if (!pdfDoc) {
+        if (!m_pdfDoc) {
             std::cerr << "Failed to load the PDF document." << std::endl;
         }
         
-        FPDF_PAGE page = FPDF_LoadPage(pdfDoc, (int)pageNumber);
+        
+        FPDF_PAGE page = FPDF_LoadPage(m_pdfDoc, (int)pageNumber);
         if (!page) {
             std::cerr << "Failed to load the page for document." << std::endl;
         }
