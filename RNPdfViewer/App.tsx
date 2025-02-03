@@ -119,7 +119,7 @@ function App(): React.JSX.Element {
           ))}
           </Group>
         </Canvas>
-        <GestureDetector gesture={Gesture.Race(panGesture, pinchGesture)}>
+        <GestureDetector gesture={Gesture.Race(pinchGesture, panGesture)}>
           <Animated.View style={[StyleSheet.absoluteFill]} />
         </GestureDetector>
       </View>
@@ -127,16 +127,6 @@ function App(): React.JSX.Element {
   
 };
 
-/*
-<Group>
-            {tiles.map((tile) => (
-              <Image key={tile.id} 
-              x={useDerivedValue(() => tile.x * scaleVal.value + offsetX.value)} 
-              y={useDerivedValue(() => tile.y * scaleVal.value + offsetY.value)} 
-              width={useDerivedValue(() => tile.width * scaleVal.value)} 
-              height={useDerivedValue(() => tile.height * scaleVal.value)} image={tile.tileData[0] as SkImage} />
-            ))}
-*/
 const styles = StyleSheet.create({
   box: {
     backgroundColor: '#b58df1',
