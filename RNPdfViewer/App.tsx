@@ -32,29 +32,31 @@ const NUM_ROWS = Math.floor(height / TILE_SIZE);
 const NUM_TILES = NUM_COLUMNS * NUM_ROWS;
 const PAGE_GAP = 20;
 const PAGE_COUNT = PdfiumModule.getPageCount();
+const PIXEL_ZOOM = 4;
+const MAX_SCALE = 3;
 
 const tileDataCache = new Map<number, [SkImage, SkData]>();
 
 const getTile = (tileid: number, tileRow: number, tileCol: number, scale: number, pageNumber: number, tileSize: number, pageWidth: number) => {
-  
+
   const cacheEntry = tileDataCache.get(tileid)
   if (cacheEntry) {
     return cacheEntry;
   }
 
-  const buf = PdfiumModule.getTile(pageNumber, -tileRow, -tileCol, pageWidth, tileSize, scale);
+  const buf = PdfiumModule.getTile(pageNumber, -tileRow, -tileCol, pageWidth, tileSize * PIXEL_ZOOM, scale * PIXEL_ZOOM);
   const ints = new Uint8Array(buf);
   const data = Skia.Data.fromBytes(ints);
 
   const image = Skia.Image.MakeImage(
     {
-        width: tileSize,
-        height: tileSize,
+        width: tileSize * PIXEL_ZOOM,
+        height: tileSize * PIXEL_ZOOM,
         alphaType: AlphaType.Opaque,
         colorType: ColorType.RGBA_8888,
     },
     data,
-    tileSize * 4);
+    tileSize * PIXEL_ZOOM * 4);
   
   tileDataCache.set(tileid, [image as SkImage, data]);
 
@@ -115,6 +117,9 @@ function App(): React.JSX.Element {
       offset.value = matrix.value;
   })
   .onChange((e) => {
+    if (e.scale > MAX_SCALE) {
+      return;
+    }
     matrix.value = multiply4(
       offset.value,
       scale(e.scale, e.scale, 1, origin.value)
@@ -127,7 +132,7 @@ function App(): React.JSX.Element {
   const animatedMat = useDerivedValue(() => {
     // Update the matrix with decaying values. https://github.com/wcandillon/can-it-be-done-in-react-native/issues/174
     // This is the hook to re-render canvas when the page changes.
-    runOnJS(setVisiblePage)(-Math.ceil(offsetY.value / (scaleVal.value * NUM_ROWS * TILE_SIZE)));
+    runOnJS(setVisiblePage)(-Math.ceil(offsetY.value / (scaleVal.value * (NUM_ROWS * TILE_SIZE + PAGE_GAP))));
     return multiply4(translate(offsetX.value, offsetY.value), matrix.value);
   });
 
