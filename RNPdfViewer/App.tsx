@@ -1,9 +1,9 @@
-import { AlphaType, Canvas, ColorType, Group, Image, Matrix4, multiply4, Rect, scale, Skia, SkImage, translate } from "@shopify/react-native-skia";
-import { StrictMode } from "react";
-import { Platform, StyleSheet, View } from "react-native";
+import { AlphaType, Canvas, ColorType, Group, Image, Matrix4, multiply4, Rect, scale, SkData, Skia, SkImage, Text, translate, useTypeface } from "@shopify/react-native-skia";
+import { useState } from "react";
+import { Dimensions, Platform, StyleSheet, View } from "react-native";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import { PdfiumModule } from "react-native-pdfium";
-import Animated, { useAnimatedStyle, useDerivedValue, useSharedValue, withDecay } from "react-native-reanimated";
+import Animated, { useAnimatedStyle, useDerivedValue, useSharedValue, withDecay, runOnJS } from "react-native-reanimated";
 import RNFS from 'react-native-fs';
 
 const fileName = 'sample.pdf'; // Relative to assets
@@ -24,7 +24,24 @@ if (Platform.OS === 'ios') {
 
 PdfiumModule.openPdf(filePath);
 
-const getTile = (tileRow: number, tileCol: number, scale: number, pageNumber: number, tileSize: number, pageWidth: number) => {
+const {width, height} = Dimensions.get('window');
+
+const TILE_SIZE = 200;
+const NUM_COLUMNS = Math.floor(width / TILE_SIZE);
+const NUM_ROWS = Math.floor(height / TILE_SIZE);
+const NUM_TILES = NUM_COLUMNS * NUM_ROWS;
+const PAGE_GAP = 20;
+const PAGE_COUNT = PdfiumModule.getPageCount();
+
+const tileDataCache = new Map<number, [SkImage, SkData]>();
+
+const getTile = (tileid: number, tileRow: number, tileCol: number, scale: number, pageNumber: number, tileSize: number, pageWidth: number) => {
+  
+  const cacheEntry = tileDataCache.get(tileid)
+  if (cacheEntry) {
+    return cacheEntry;
+  }
+
   const buf = PdfiumModule.getTile(pageNumber, -tileRow, -tileCol, pageWidth, tileSize, scale);
   const ints = new Uint8Array(buf);
   const data = Skia.Data.fromBytes(ints);
@@ -38,17 +55,11 @@ const getTile = (tileRow: number, tileCol: number, scale: number, pageNumber: nu
     },
     data,
     tileSize * 4);
+  
+  tileDataCache.set(tileid, [image as SkImage, data]);
 
   return [image, data];
 };
-
-
-const TILE_SIZE = 200;
-const NUM_TILES = 140;
-const NUM_COLUMNS = 10;
-const NUM_ROWS = NUM_TILES / NUM_COLUMNS;
-const PAGE_GAP = 20;
-const PAGE_COUNT = PdfiumModule.getPageCount();
 
 // Create an array of tile objects with position and image URI.
 // (Replace the URI with your actual image sources.)
@@ -57,14 +68,17 @@ const tiles = Array.from({ length: NUM_TILES * PAGE_COUNT }, (_, totalTiles) => 
   const i = totalTiles % NUM_TILES;
   const row = Math.floor(i / NUM_COLUMNS);
   const col = i % NUM_COLUMNS;
+
   return {
     id: totalTiles,
+    row: row,
+    col: col,
     x: col * TILE_SIZE,
     y: row * TILE_SIZE + (pageNumber * NUM_ROWS * TILE_SIZE + PAGE_GAP * pageNumber),
     width: TILE_SIZE,
     height: TILE_SIZE,
+    pageNumber: pageNumber,
     color: i % 2 === 0 ? "red" : "blue",
-    tileData: getTile(row, col, 1, pageNumber, TILE_SIZE, 1000),
   };
 });
 
@@ -75,12 +89,16 @@ function App(): React.JSX.Element {
 
   const offsetX = useSharedValue<number>(0);
   const offsetY = useSharedValue<number>(0);
+  const scaleVal = useSharedValue<number>(1);
   
   const matrix = useSharedValue(Matrix4());
+
+  const [visiblePage, setVisiblePage] = useState(0);
 
   const panGesture = Gesture.Pan().onChange((e) => {
     offsetX.value += e.changeX;
     offsetY.value += e.changeY;
+
   }).onEnd((e) => {
     offsetX.value = withDecay({
       velocity: e.velocityX
@@ -101,24 +119,35 @@ function App(): React.JSX.Element {
       offset.value,
       scale(e.scale, e.scale, 1, origin.value)
     );
+    scaleVal.value = e.scale;
   });
 
 
+  
   const animatedMat = useDerivedValue(() => {
     // Update the matrix with decaying values. https://github.com/wcandillon/can-it-be-done-in-react-native/issues/174
+    // This is the hook to re-render canvas when the page changes.
+    runOnJS(setVisiblePage)(-Math.ceil(offsetY.value / (scaleVal.value * NUM_ROWS * TILE_SIZE)));
     return multiply4(translate(offsetX.value, offsetY.value), matrix.value);
   });
 
   return (  
     <GestureHandlerRootView style={{ flex: 1 }}>
       <View style={{ flex: 1 }}>
-        <Canvas style={{ flex: 1, backgroundColor: 'gray' }}> 
-          <Group matrix={animatedMat}>
-          {tiles.map((tile) => (
-            <Image key={tile.id} x={tile.x} y={tile.y} width={tile.width} height={tile.height} image={tile.tileData[0] as SkImage} />
-          ))}
-          </Group>
-        </Canvas>
+          <Canvas style={{ flex: 1, backgroundColor: 'gray' }}> 
+            <Group matrix={animatedMat}>
+              {tiles.map((tile) => {
+
+                if (Math.abs(tile.pageNumber - visiblePage) > 2) {
+                  return null;
+                }
+                return (
+                  <Image key={tile.id} x={tile.x} y={tile.y} width={tile.width} height={tile.height} 
+                    image={getTile(tile.id, tile.row, tile.col, 0.5, tile.pageNumber, TILE_SIZE, width)![0] as SkImage} />
+              )})}
+            </Group>
+          </Canvas>
+        
         <GestureDetector gesture={Gesture.Race(pinchGesture, panGesture)}>
           <Animated.View style={[StyleSheet.absoluteFill]} />
         </GestureDetector>
@@ -127,9 +156,4 @@ function App(): React.JSX.Element {
   
 };
 
-const styles = StyleSheet.create({
-  box: {
-    backgroundColor: '#b58df1',
-  },
-});
 export default App;
