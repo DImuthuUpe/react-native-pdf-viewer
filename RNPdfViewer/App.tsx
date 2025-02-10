@@ -1,5 +1,5 @@
 import { AlphaType, Canvas, ColorType, Group, Image, Matrix4, multiply4, Rect, scale, SkData, Skia, SkImage, Text, translate, useTypeface } from "@shopify/react-native-skia";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Dimensions, Platform, StyleSheet, View } from "react-native";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import { PdfiumModule } from "react-native-pdfium";
@@ -35,33 +35,6 @@ const PAGE_COUNT = PdfiumModule.getPageCount();
 const PIXEL_ZOOM = 4;
 const MAX_SCALE = 3;
 
-const tileDataCache = new Map<number, [SkImage, SkData]>();
-
-const getTile = (tileid: number, tileRow: number, tileCol: number, scale: number, pageNumber: number, tileSize: number, pageWidth: number) => {
-
-  const cacheEntry = tileDataCache.get(tileid)
-  if (cacheEntry) {
-    return cacheEntry;
-  }
-
-  const buf = PdfiumModule.getTile(pageNumber, -tileRow, -tileCol, pageWidth, tileSize * PIXEL_ZOOM, scale * PIXEL_ZOOM);
-  const ints = new Uint8Array(buf);
-  const data = Skia.Data.fromBytes(ints);
-
-  const image = Skia.Image.MakeImage(
-    {
-        width: tileSize * PIXEL_ZOOM,
-        height: tileSize * PIXEL_ZOOM,
-        alphaType: AlphaType.Opaque,
-        colorType: ColorType.RGBA_8888,
-    },
-    data,
-    tileSize * PIXEL_ZOOM * 4);
-  
-  tileDataCache.set(tileid, [image as SkImage, data]);
-
-  return [image, data];
-};
 
 // Create an array of tile objects with position and image URI.
 // (Replace the URI with your actual image sources.)
@@ -97,6 +70,8 @@ function App(): React.JSX.Element {
 
   const [visiblePage, setVisiblePage] = useState(0);
 
+  const tileDataCache = useRef(new Map<number, SkImage>());
+
   const panGesture = Gesture.Pan().onChange((e) => {
     offsetX.value += e.changeX;
     offsetY.value += e.changeY;
@@ -128,6 +103,43 @@ function App(): React.JSX.Element {
   });
 
 
+  const getTile = (tileid: number, tileRow: number, tileCol: number, scale: number, pageNumber: number, tileSize: number, pageWidth: number) => {
+
+    const cacheEntry = tileDataCache.current.get(tileid)
+    if (cacheEntry) {
+      return cacheEntry;
+    }
+  
+    const buf = PdfiumModule.getTile(pageNumber, -tileRow, -tileCol, pageWidth, tileSize * PIXEL_ZOOM, scale * PIXEL_ZOOM);
+    const ints = new Uint8Array(buf);
+
+    const data = Skia.Data.fromBytes(ints);
+    const image = Skia.Image.MakeImage(
+      {
+          width: tileSize * PIXEL_ZOOM,
+          height: tileSize * PIXEL_ZOOM,
+          alphaType: AlphaType.Opaque,
+          colorType: ColorType.RGBA_8888,
+      },
+      data,
+      tileSize * PIXEL_ZOOM * 4);
+    data.dispose();
+    tileDataCache.current.set(tileid, image as SkImage);
+
+    if (tileDataCache.current.size > 100) {
+      tileDataCache.current.forEach((value, key) => {
+        if (Math.abs(key - tileid) > 100) {
+          console.log('disposing', key);
+          value.dispose();
+          tileDataCache.current.delete(key);
+          console.log(HermesInternal.getInstrumentedStats())
+        }
+      });
+    
+    }
+
+    return image;
+  };
   
   const animatedMat = useDerivedValue(() => {
     // Update the matrix with decaying values. https://github.com/wcandillon/can-it-be-done-in-react-native/issues/174
@@ -148,7 +160,7 @@ function App(): React.JSX.Element {
                 }
                 return (
                   <Image key={tile.id} x={tile.x} y={tile.y} width={tile.width} height={tile.height} 
-                    image={getTile(tile.id, tile.row, tile.col, 0.5, tile.pageNumber, TILE_SIZE, width)![0] as SkImage} />
+                    image={getTile(tile.id, tile.row, tile.col, 0.5, tile.pageNumber, TILE_SIZE, width)! as SkImage} />
               )})}
             </Group>
           </Canvas>
