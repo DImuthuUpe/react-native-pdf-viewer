@@ -1257,7 +1257,7 @@ PODS:
     - React-jsiexecutor
     - React-RCTFBReactNativeSpec
     - ReactCommon/turbomodule/core
-  - react-native-skia (1.11.3):
+  - react-native-skia (1.11.8):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -1948,7 +1948,7 @@ SPEC CHECKSUMS:
   React-logger: 02e5802824aa9b15cb7df42e10a91abead83cd8d
   React-Mapbuffer: 99bd566147aaa78e872568be53ebca8a4449ddae
   React-microtasksnativemodule: 51e7813abf875408a0f367e473a65bbab6aa8481
-  react-native-skia: 36ca206c405856310306b00e7b312320b9121e42
+  react-native-skia: d3d3afa9c428c6c7ccfd89a02683b5dbf2f31d35
   React-nativeconfig: cd0fbb40987a9658c24dab5812c14e5522a64929
   React-NativeModulesApple: 4a9c304aa4fb086af32e8758ba892386d895b4d3
   React-perflogger: 721172bda31a65ce7b7a0c3bf3de96f12ef6f45d
