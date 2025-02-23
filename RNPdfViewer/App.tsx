@@ -130,7 +130,7 @@ const App = () => {
     canvas.save();
     
     const pageWidth = pageDimensions.value[pageNum][0] * PIXEL_ZOOM;
-    const pageHeight = pageDimensions.value[pageNum][0] * PIXEL_ZOOM;
+    const pageHeight = pageDimensions.value[pageNum][1] * PIXEL_ZOOM;
 
     const numCols = Math.ceil(pageWidth / TILE_SIZE);
     const numRows = Math.ceil(pageHeight / TILE_SIZE);
