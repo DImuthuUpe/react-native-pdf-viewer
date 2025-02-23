@@ -42,11 +42,11 @@ namespace margelo::nitro::pdfium {
         return page_count;
     }
 
-    std::vector<std::tuple<double, double>> HybridPdfiumUtil::getAllPageDimensions() {
+    std::vector<std::tuple<double, double, double>> HybridPdfiumUtil::getAllPageDimensions() {
         
         // Vector to store dimensions
         // We do not have to explicitly free memory as std::vector is returned by value
-        std::vector<std::tuple<double, double>> pageDimensions;
+        std::vector<std::tuple<double, double, double>> pageDimensions;
         
         if (m_pdfDoc == nullptr) {
             std::cerr << "No PDF document was loaded" << std::endl;
@@ -56,6 +56,7 @@ namespace margelo::nitro::pdfium {
         // Get the total number of pages
         int pageCount = FPDF_GetPageCount(m_pdfDoc);
 
+        double aggregatedHeight = 0;
         // Iterate over all pages
         for (int i = 0; i < pageCount; ++i) {
             // Load the page
@@ -68,9 +69,9 @@ namespace margelo::nitro::pdfium {
             // Get the width and height of the page
             double width = FPDF_GetPageWidth(page);
             double height = FPDF_GetPageHeight(page);
-
+            aggregatedHeight += height;
             // Store the dimensions
-            pageDimensions.emplace_back(width, height);
+            pageDimensions.emplace_back(width, height, aggregatedHeight);
         }
 
         return pageDimensions;
@@ -130,8 +131,8 @@ namespace margelo::nitro::pdfium {
                     
         FPDFBitmap_FillRect(bitmapHandle, 0, 0, tileSize, tileSize, 0xffffffff);
         
-        float xScale = scale * 2  * displayWidth / width;
-        float yScale = scale * 2  * displayWidth / width;
+        float xScale = scale;//  * displayWidth / width;
+        float yScale = scale;//  * displayWidth / width;
         float xTranslate = column * tileSizeD;
         float yTranslate = row * tileSizeD;
         std::thread::id this_id = std::this_thread::get_id();

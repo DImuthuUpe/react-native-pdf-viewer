@@ -7,6 +7,7 @@ import Animated, { useAnimatedStyle, useDerivedValue, useSharedValue, withDecay,
 import RNFS from 'react-native-fs';
 import { NitroModules } from "react-native-nitro-modules";
 import { cleanUpOutofScaleTiles, deleteAllTilesFromCacheForPage, getTileFromCache, setTileInCache } from "./src/TileCache";
+import { cleanUpOutofScalePageSnapshots, deleteAllSnapshotsFromCacheForPage, getPageFromCache, setPageInCache } from "./src/PageCache"; 
 const fileName = 'sample.pdf'; // Relative to assets
 let filePath = '';
 
@@ -31,25 +32,10 @@ const { width: stageWidth, height: stageHeight } = Dimensions.get('screen');
 
 const {width, height} = Dimensions.get('window');
 const TILE_SIZE = 256;
-const NUM_COLUMNS = Math.floor(width / TILE_SIZE);
-const NUM_ROWS = Math.floor(height / TILE_SIZE);
-const NUM_TILES = NUM_COLUMNS * NUM_ROWS;
-const PAGE_GAP = 20;
-const PAGE_COUNT = 10;
+const PAGE_GAP = 10;
+const PAGE_COUNT = PdfiumModule.getPageCount();
 const PIXEL_ZOOM = 2;
 const MAX_SCALE = 3;
-
-//const tileSize = TILE_SIZE * PIXEL_ZOOM;
-
-const pixels = new Uint8Array(TILE_SIZE * TILE_SIZE * 4);
-    pixels.fill(255);
-    let i = 0;
-    for (let x = 0; x < TILE_SIZE; x++) {
-      for (let y = 0; y < TILE_SIZE; y++) {
-        pixels[i++] = (x * y) % 255;
-      }
-    }
-
     
 const App = () => {
 
@@ -59,6 +45,9 @@ const App = () => {
   const offset = useSharedValue(Matrix4());
   const matrix = useSharedValue(Matrix4());
   const scaleEndValue = useSharedValue<number>(1);
+  const pageDimensions = useSharedValue(PdfiumModule.getAllPageDimensions());
+
+  const width = stageWidth;
 
   const panGesture = Gesture.Pan().onChange((e) => {
 
@@ -96,7 +85,7 @@ const App = () => {
 
   const getTileFromPdfium = (page: number, row: number, col: number, zoomFactor: number) => {
     "worklet";
-    const tileBuf = boxedPdfium.unbox().getTile(page, -row, -col, width / 2, TILE_SIZE * zoomFactor, zoomFactor);
+    const tileBuf = boxedPdfium.unbox().getTile(page, -row, -col, width, TILE_SIZE * zoomFactor, zoomFactor);
 
     const data = Skia.Data.fromBytes(new Uint8Array(tileBuf));
     const img = Skia.Image.MakeImage(
@@ -140,72 +129,54 @@ const App = () => {
 
     canvas.save();
     
-    drawTile(canvas, offX, offY, scale, pageNum, 0, 0);
-    drawTile(canvas, offX, offY, scale, pageNum, 1, 0);
-    drawTile(canvas, offX, offY, scale, pageNum, 2, 0);
-    drawTile(canvas, offX, offY, scale, pageNum, 0, 1);
-    drawTile(canvas, offX, offY, scale, pageNum, 1, 1);
-    drawTile(canvas, offX, offY, scale, pageNum, 2, 1);
-    drawTile(canvas, offX, offY, scale, pageNum, 0, 2);
-    drawTile(canvas, offX, offY, scale, pageNum, 1, 2);
-    drawTile(canvas, offX, offY, scale, pageNum, 2, 2);
+    const pageWidth = pageDimensions.value[pageNum][0] * PIXEL_ZOOM;
+    const pageHeight = pageDimensions.value[pageNum][0] * PIXEL_ZOOM;
 
-    drawTile(canvas, offX, offY, scale, pageNum, 0, 3);
-    drawTile(canvas, offX, offY, scale, pageNum, 1, 3);
-    drawTile(canvas, offX, offY, scale, pageNum, 2, 3);
+    const numCols = Math.ceil(pageWidth / TILE_SIZE);
+    const numRows = Math.ceil(pageHeight / TILE_SIZE);
+
+    for (let row = 0; row < numRows; row++) {
+      for (let col = 0; col < numCols; col++) {
+        drawTile(canvas, offX, offY, scale, pageNum, col, row);
+      }
+    }
     canvas.restore();
-
-
   };
 
   const getOffScreenPage = (pageNum: number, yOff: number, scale: number) => {
     "worklet";
 
-    const pageByOffset = Math.ceil(-yOff / (1050 * scale));
-    if ((pageNum - pageByOffset) > (2 / scale)) {
+    const pageTopY = PAGE_GAP * pageNum + pageDimensions.value[pageNum][2] - pageDimensions.value[0][1];
+    const pageBottomY = pageTopY + pageDimensions.value[pageNum][1];
+
+    if (pageBottomY * scale < -yOff || pageTopY * scale > -yOff + height) {
       deleteAllTilesFromCacheForPage(pageNum);
+      deleteAllSnapshotsFromCacheForPage(pageNum);
       return null;
-    }  
+    }
 
     scale = Math.ceil(scale);
     
     cleanUpOutofScaleTiles(pageNum,scale);
+    cleanUpOutofScalePageSnapshots(pageNum, scale);
 
-    if (global.pageCache == null) {
-      global.pageCache = {};
-    }
+    var img = getPageFromCache(pageNum, scale);
 
-    if (global.pageCache[pageNum] == null) {
-      global.pageCache[pageNum] = {};
-    }
+    if (img == null) {
+      const offscreen = Skia.Surface.MakeOffscreen(
+        pageDimensions.value[pageNum][0] * PIXEL_ZOOM * scale, 
+        pageDimensions.value[pageNum][1] * PIXEL_ZOOM * scale)!;
 
-
-    const keys = Object.keys(global.pageCache[pageNum]);
-    for (let i = 0; i < keys.length; i++) {
-        if (keys[i] != scale) {
-          global.pageCache[pageNum][keys[i]].dispose();
-          delete global.pageCache[pageNum][keys[i]];
-          global.gc();
-        }
-    }
-
-    if (global.pageCache[pageNum][scale] == null) {
-      const offscreen = Skia.Surface.MakeOffscreen(stageWidth * PIXEL_ZOOM * scale, stageHeight * PIXEL_ZOOM * scale)!;
-      
       const canvas = offscreen.getCanvas();
       drawTiles(canvas, 0, 0, scale, pageNum);
-      global.gc();
-      global.pageCache[pageNum][scale] = offscreen.makeImageSnapshot();
+      img = offscreen.makeImageSnapshot();
+      setPageInCache(pageNum, scale, img);
     }
-
-    
-    return global.pageCache[pageNum][scale];
+    return img;
   };
 
 
   const animatedMat = useDerivedValue(() => {
-    // Update the matrix with decaying values. https://github.com/wcandillon/can-it-be-done-in-react-native/issues/174
-    // This is the hook to re-render canvas when the page changes.
     return multiply4(translate(offsetX.value, offsetY.value), matrix.value);
   });
 
@@ -221,7 +192,11 @@ const App = () => {
         > 
           <Group matrix={animatedMat}>
             {[...Array(PAGE_COUNT)].map((_, i) => (
-              <Image key={i} image={useDerivedValue(() => getOffScreenPage(i, offsetY.value, scaleEndValue.value))} y={1050 * i} width={stageWidth} height={stageHeight} />
+              <Image key={i} 
+              image={useDerivedValue(() => getOffScreenPage(i, offsetY.value, scaleEndValue.value))} 
+              y={pageDimensions.value[i][2] - pageDimensions.value[0][1] + PAGE_GAP * i} 
+              width={pageDimensions.value[i][0]}
+              height={pageDimensions.value[i][1]} />
             ))}
           </Group>  
         </Canvas>

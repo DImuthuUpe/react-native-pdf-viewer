@@ -57,7 +57,7 @@ namespace margelo::nitro::pdfium {
       virtual void closePdf() = 0;
       virtual std::shared_ptr<ArrayBuffer> getTile(double pageNumber, double row, double column, double displayWidth, double tileSize, double scale) = 0;
       virtual double getPageCount() = 0;
-      virtual std::vector<std::tuple<double, double>> getAllPageDimensions() = 0;
+      virtual std::vector<std::tuple<double, double, double>> getAllPageDimensions() = 0;
 
     protected:
       // Hybrid Setup

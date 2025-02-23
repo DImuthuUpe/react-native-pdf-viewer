@@ -57,6 +57,7 @@ export const deleteAllTilesFromCacheForPage = (page: number) => {
     }
     if (global.skImageCache[page] != null) {
         const scales = Object.keys(global.skImageCache[page]);
+        console.log("deleting all tiles for page: " + page);
         for (let i = 0; i < scales.length; i++) {
 
             const gridLocations = Object.keys(global.skImageCache[page][scales[i]]);

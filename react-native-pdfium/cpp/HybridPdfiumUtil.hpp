@@ -16,7 +16,7 @@ namespace margelo::nitro::pdfium {
             void openPdf(const std::string& filePath) override;
             void closePdf() override;
             double getPageCount() override;
-            std::vector<std::tuple<double, double>> getAllPageDimensions() override;
+            std::vector<std::tuple<double, double, double>> getAllPageDimensions() override;
             
             std::shared_ptr<ArrayBuffer> getTile(double pageNumber, double row, double column, double displayWidth, double tileSize, double scale) override;
             ~HybridPdfiumUtil() {
