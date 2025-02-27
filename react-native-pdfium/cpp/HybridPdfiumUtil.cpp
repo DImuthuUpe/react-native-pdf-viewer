@@ -129,7 +129,7 @@ namespace margelo::nitro::pdfium {
             return buf;
         }
                     
-        FPDFBitmap_FillRect(bitmapHandle, 0, 0, tileSize, tileSize, 0xffffffff);
+        FPDFBitmap_FillRect(bitmapHandle, 0, 0, tileSize, tileSize, 0x00000000);
         
         float xScale = scale;//  * displayWidth / width;
         float yScale = scale;//  * displayWidth / width;

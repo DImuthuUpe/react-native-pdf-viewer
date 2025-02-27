@@ -1,4 +1,4 @@
-import { AlphaType, Canvas, ColorType, Group, Image, Matrix4, multiply4, Rect, scale, SkCanvas, SkData, Skia, SkImage, Text, translate, useTypeface } from "@shopify/react-native-skia";
+import { AlphaType, Canvas, ColorType, Group, Image, matchFont, Matrix4, multiply4, Rect, scale, SkCanvas, SkData, Skia, SkImage, Text, translate, useTypeface } from "@shopify/react-native-skia";
 import { useRef, useState } from "react";
 import { Dimensions, Platform, StyleSheet, View } from "react-native";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
@@ -8,7 +8,7 @@ import RNFS from 'react-native-fs';
 import { NitroModules } from "react-native-nitro-modules";
 import { cleanUpOutofScaleTiles, deleteAllTilesFromCacheForPage, getTileFromCache, setTileInCache } from "./src/TileCache";
 import { cleanUpOutofScalePageSnapshots, deleteAllSnapshotsFromCacheForPage, getPageFromCache, setPageInCache } from "./src/PageCache"; 
-const fileName = 'sample.pdf'; // Relative to assets
+const fileName = 'A17_FlightPlan.pdf';//'sample.pdf'; // Relative to assets
 let filePath = '';
 
 if (Platform.OS === 'ios') {
@@ -32,6 +32,12 @@ const { width: stageWidth, height: stageHeight } = Dimensions.get('screen');
 
 const {width, height} = Dimensions.get('window');
 const TILE_SIZE = 256;
+
+const verticalTiles = Math.ceil(height / TILE_SIZE) * 2;
+const horizontalTiles = Math.ceil(width / TILE_SIZE)-1;
+const canvasHeight = verticalTiles * TILE_SIZE;
+const canvasWidth = horizontalTiles * TILE_SIZE;
+
 const PAGE_GAP = 10;
 const PAGE_COUNT = PdfiumModule.getPageCount();
 const PIXEL_ZOOM = 2;
@@ -40,7 +46,8 @@ const MAX_SCALE = 3;
 const App = () => {
 
   const offsetX = useSharedValue<number>(0);
-  const offsetY = useSharedValue<number>(0);
+  const offsetY = useSharedValue<number>(-2048);
+  const scaleVal = useSharedValue<number>(1);
   const origin = useSharedValue({ x: 0, y: 0 });
   const offset = useSharedValue(Matrix4());
   const matrix = useSharedValue(Matrix4());
@@ -67,7 +74,6 @@ const App = () => {
 
   const pinchGesture = Gesture.Pinch()
   .onBegin((e) => {
-      
       origin.value = { x: e.focalX, y: e.focalY };
       offset.value = matrix.value;
   })
@@ -75,6 +81,7 @@ const App = () => {
     if (e.scale > MAX_SCALE) {
       return;
     }
+    scaleVal.value = e.scale;
     matrix.value = multiply4(
       offset.value,
       scale(e.scale, e.scale, 1, origin.value)
@@ -98,87 +105,54 @@ const App = () => {
       data,
       TILE_SIZE * zoomFactor * 4
     );
+
+    const offscreen = Skia.Surface.MakeOffscreen(
+      TILE_SIZE * zoomFactor, 
+      TILE_SIZE * zoomFactor)!;
+
+    const canvas = offscreen.getCanvas();
+    canvas.drawImage(img as SkImage, 0, 0);
+    img?.dispose(); 
     data.dispose();
-    return img;
+    const offImg = offscreen.makeImageSnapshot();
+    offscreen.dispose();
+    return offImg;
   }
 
-  const drawTile = (canvas: SkCanvas, offX: number, offY: number, 
-    scale: number, page: number, col: number, row: number) => {
-
+  const getOffScreenTile = (pageNum: number, row: number, col: number, scale: number) => {
     "worklet";
-    
-    const zoomFactor = PIXEL_ZOOM * scale;
-    canvas.translate((col * TILE_SIZE + offX) * zoomFactor, 
-                     (row * TILE_SIZE + offY) * zoomFactor);
 
     const gridLocation = `${col}-${row}`;
-
-    var img = getTileFromCache(page, scale, gridLocation);
-                 
-    if (img == null) {      
-      img = getTileFromPdfium(page, row, col, zoomFactor);
-      setTileInCache(page, scale, gridLocation, img);
-    }
-
-    canvas.drawImage(img as SkImage,  0,  0, );
-    canvas.translate(- (col * TILE_SIZE + offX) * zoomFactor, -(offY + row * TILE_SIZE) * zoomFactor);
-  }
-
-  const drawTiles = (canvas: SkCanvas, offX: number, offY: number, scale: number, pageNum: number) => {
-    'worklet';
-
-    canvas.save();
-    
-    const pageWidth = pageDimensions.value[pageNum][0] * PIXEL_ZOOM;
-    const pageHeight = pageDimensions.value[pageNum][1] * PIXEL_ZOOM;
-
-    const numCols = Math.ceil(pageWidth / TILE_SIZE);
-    const numRows = Math.ceil(pageHeight / TILE_SIZE);
-
-    for (let row = 0; row < numRows; row++) {
-      for (let col = 0; col < numCols; col++) {
-        drawTile(canvas, offX, offY, scale, pageNum, col, row);
-      }
-    }
-    canvas.restore();
-  };
-
-  const getOffScreenPage = (pageNum: number, yOff: number, scale: number) => {
-    "worklet";
-
-    const pageTopY = PAGE_GAP * pageNum + pageDimensions.value[pageNum][2] - pageDimensions.value[0][1];
-    const pageBottomY = pageTopY + pageDimensions.value[pageNum][1];
-
-    if (pageBottomY * scale < -yOff || pageTopY * scale > -yOff + height) {
-      deleteAllTilesFromCacheForPage(pageNum);
-      deleteAllSnapshotsFromCacheForPage(pageNum);
-      return null;
-    }
-
-    scale = Math.ceil(scale);
-    
-    cleanUpOutofScaleTiles(pageNum,scale);
-    cleanUpOutofScalePageSnapshots(pageNum, scale);
-
-    var img = getPageFromCache(pageNum, scale);
-
+    var img = getTileFromCache(pageNum, scale, gridLocation);
     if (img == null) {
-      const offscreen = Skia.Surface.MakeOffscreen(
-        pageDimensions.value[pageNum][0] * PIXEL_ZOOM * scale, 
-        pageDimensions.value[pageNum][1] * PIXEL_ZOOM * scale)!;
-
-      const canvas = offscreen.getCanvas();
-      drawTiles(canvas, 0, 0, scale, pageNum);
-      img = offscreen.makeImageSnapshot();
-      setPageInCache(pageNum, scale, img);
+      img = getTileFromPdfium(pageNum, row, col, PIXEL_ZOOM * Math.ceil(scale));
+      setTileInCache(pageNum, scale, gridLocation, img);
+      cleanUpOutofScaleTiles(pageNum, scale);
     }
     return img;
-  };
+  }
 
+  const getImageForTile = (xOff: number, yOff: number, scale: number, row: number, col: number) => {
+    "worklet";
 
-  const animatedMat = useDerivedValue(() => {
-    return multiply4(translate(offsetX.value, offsetY.value), matrix.value);
-  });
+    if (yOff > 0) {
+      return null;
+    }
+    
+    const iteration = Math.floor(-yOff / canvasHeight);
+    const offsetRow = Math.floor((-yOff % canvasHeight)/TILE_SIZE);
+
+    const calculatedRow = offsetRow >= row ? iteration * verticalTiles + row : (iteration -1) * verticalTiles + row;
+
+    const verticalTilesForPage = Math.ceil(pageDimensions.value[0][1] / TILE_SIZE);
+    const localRow = calculatedRow % verticalTilesForPage;
+    const page = Math.floor(calculatedRow / verticalTilesForPage);
+    if (page < 0) {
+      return null;
+    }
+    const img = getOffScreenTile(page, localRow, col, scale);
+    return img;
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -190,15 +164,27 @@ const App = () => {
           backgroundColor: 'lightblue',
         }}
         > 
-          <Group matrix={animatedMat}>
-            {[...Array(PAGE_COUNT)].map((_, i) => (
-              <Image key={i} 
-              image={useDerivedValue(() => getOffScreenPage(i, offsetY.value, scaleEndValue.value))} 
-              y={pageDimensions.value[i][2] - pageDimensions.value[0][1] + PAGE_GAP * i} 
-              width={pageDimensions.value[i][0]}
-              height={pageDimensions.value[i][1]} />
-            ))}
-          </Group>  
+          <Group>
+          {[...Array(horizontalTiles).keys()].map((horizontalTileId) => {
+            return [...Array(verticalTiles).keys()].map((verticalTileId) => {
+              return ( 
+                <Image 
+                x={useDerivedValue(() => scaleVal.value * (offsetX.value + horizontalTileId*TILE_SIZE))}
+                y={useDerivedValue(() =>  { 
+                  const absT = (offsetY.value + verticalTileId * TILE_SIZE) % canvasHeight;
+                  const yPos =  absT < 0? absT + canvasHeight: absT;
+                  return scaleVal.value * (yPos - TILE_SIZE * 2);})}
+                image={useDerivedValue(() => getImageForTile(
+                  offsetX.value, 
+                  offsetY.value, 
+                  scaleEndValue.value, 
+                  verticalTileId, 
+                  horizontalTileId))}
+                width={useDerivedValue(() => TILE_SIZE * scaleVal.value)} 
+                height={useDerivedValue(() => TILE_SIZE * scaleVal.value)}/>);
+              });
+          })}
+          </Group> 
         </Canvas>
         <GestureDetector gesture={Gesture.Race(pinchGesture, panGesture)}>
           <Animated.View style={[StyleSheet.absoluteFill]} />
