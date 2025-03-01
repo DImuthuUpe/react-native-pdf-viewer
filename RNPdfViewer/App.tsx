@@ -1,14 +1,12 @@
-import { AlphaType, Canvas, ColorType, Group, Image, matchFont, Matrix4, multiply4, Rect, scale, SkCanvas, SkData, Skia, SkImage, Text, translate, useTypeface } from "@shopify/react-native-skia";
-import { useRef, useState } from "react";
+import { AlphaType, Canvas, ColorType, Group, Image, Matrix4, multiply4, Rect, scale, Skia, SkImage } from "@shopify/react-native-skia";
 import { Dimensions, Platform, StyleSheet, View } from "react-native";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import { PdfiumModule } from "react-native-pdfium";
-import Animated, { useAnimatedStyle, useDerivedValue, useSharedValue, withDecay, runOnJS, runOnUI } from "react-native-reanimated";
+import Animated, { useDerivedValue, useSharedValue, withDecay } from "react-native-reanimated";
 import RNFS from 'react-native-fs';
 import { NitroModules } from "react-native-nitro-modules";
-import { cleanUpOutofScaleTiles, deleteAllTilesFromCacheForPage, getTileFromCache, setTileInCache } from "./src/TileCache";
-import { cleanUpOutofScalePageSnapshots, deleteAllSnapshotsFromCacheForPage, getPageFromCache, setPageInCache } from "./src/PageCache"; 
-const fileName = 'A17_FlightPlan.pdf';//'sample.pdf'; // Relative to assets
+import { cleanUpOutofScaleTiles, deleteAllTilesFromCacheForPage, getTileFromCache, setTileInCache, getGlobalTileFromCache, setGlobalTileInCache, clearGlobalTileCache } from "./src/TileCache";
+const fileName = 'sample.pdf';//'A17_FlightPlan.pdf';//'sample.pdf'; // Relative to assets
 let filePath = '';
 
 if (Platform.OS === 'ios') {
@@ -42,6 +40,60 @@ const PAGE_GAP = 10;
 const PAGE_COUNT = PdfiumModule.getPageCount();
 const PIXEL_ZOOM = 2;
 const MAX_SCALE = 3;
+
+const pageDims = PdfiumModule.getAllPageDimensions();
+
+const tilePageCoverage: [number, number, number, number][] = [];
+
+for (let tileStep = 0; tileStep * TILE_SIZE < pageDims[PAGE_COUNT -1][2]; tileStep++) {
+  const tileStartY = tileStep * TILE_SIZE;
+  const tileEndY = tileStartY + TILE_SIZE;
+  pageDims.forEach((pageDim, pageNum) => {
+    const pageHeight = pageDim[1];
+    const pageStartY = pageDim[2] - pageHeight;
+    const pageEndY = pageStartY + pageHeight;
+
+    if (tileStartY >= pageStartY && tileEndY <= pageEndY) {
+      // Tile is fully covered by page
+      const tileOffset = tileStartY - pageStartY;
+      if (tileOffset % TILE_SIZE == 0) {
+        // Tile is aligned with page tile
+        const pageTile = Math.floor(tileOffset / TILE_SIZE);
+        const translation = 0
+        tilePageCoverage.push([tileStep, pageNum, pageTile, translation]);
+      } else {
+        // Tile is covered by 2 page tiles
+        const pageTile1 = Math.floor(tileOffset / TILE_SIZE);
+        const translation1 = tileOffset - pageTile1 * TILE_SIZE;
+
+        const pageTile2 = pageTile1 + 1;
+        const translation2 = TILE_SIZE - translation1;
+        
+        tilePageCoverage.push([tileStep, pageNum, pageTile1, translation1]);
+        tilePageCoverage.push([tileStep, pageNum, pageTile2, -translation2]);
+      }
+    } else if (tileStartY < pageStartY && tileEndY > pageStartY) {
+      // Tile is partially covered by page top part
+      const pageTile = 0;
+      const translation = tileStartY - pageStartY;
+      tilePageCoverage.push([tileStep, pageNum, pageTile, translation]);
+    } else if (tileStartY < pageEndY && tileEndY > pageEndY) {
+      // Tile is partially covered by page bottom part
+      const pageTile = Math.floor((tileStartY - pageStartY) / TILE_SIZE);
+      const translation = tileStartY - (pageStartY + pageTile * TILE_SIZE);
+      tilePageCoverage.push([tileStep, pageNum, pageTile, translation]);
+    }
+  });
+}
+
+pageDims.forEach((pageDim, pageNum) => {
+  console.log(`Page ${pageNum} dims: ${pageDim}`);
+}
+);
+tilePageCoverage.forEach((tilePage) => {
+  console.log(tilePage);
+}
+);
     
 const App = () => {
 
@@ -52,7 +104,7 @@ const App = () => {
   const offset = useSharedValue(Matrix4());
   const matrix = useSharedValue(Matrix4());
   const scaleEndValue = useSharedValue<number>(1);
-  const pageDimensions = useSharedValue(PdfiumModule.getAllPageDimensions());
+  const pageCoverageTiles = useSharedValue(tilePageCoverage);
 
   const width = stageWidth;
 
@@ -112,9 +164,9 @@ const App = () => {
 
     const canvas = offscreen.getCanvas();
     canvas.drawImage(img as SkImage, 0, 0);
+    const offImg = offscreen.makeImageSnapshot();
     img?.dispose(); 
     data.dispose();
-    const offImg = offscreen.makeImageSnapshot();
     offscreen.dispose();
     return offImg;
   }
@@ -132,6 +184,59 @@ const App = () => {
     return img;
   }
 
+  const getTileImage = (row: number, col: number, zoomFactor: number) => {
+    "worklet";
+
+    if (row != 5 && row != 4) {
+      //return null;
+    }
+
+    if (col != 0) {
+      //return null;
+    }
+
+    const cacheImg = getGlobalTileFromCache(zoomFactor, row, col);
+    if (cacheImg != null) {
+      return cacheImg;
+    }
+
+    const offscreen = Skia.Surface.MakeOffscreen(
+      TILE_SIZE * 2, 
+      TILE_SIZE * 2)!;
+
+    const canvas = offscreen.getCanvas();
+
+    for (let i = 0; i < pageCoverageTiles.value.length; i++) {
+      const tilePage = pageCoverageTiles.value[i];
+      if (tilePage[0] == row) {
+        canvas.save();
+        const pageNum = tilePage[1];
+        const pageTile = tilePage[2];
+        const translation = tilePage[3];
+        if (translation == -24) {
+          //continue
+        }
+        //console.log(`Drawing tile page : ${pageNum} ${pageTile} ${translation}`);
+        canvas.translate(0, -translation * 2);
+        const img = getOffScreenTile(pageNum, pageTile, col, zoomFactor);
+        canvas.drawImage(img as SkImage, 0, 0);
+        canvas.restore();
+      } else {
+        if (tilePage[0] > row) {
+          break;
+        }
+      }
+    }
+
+
+    const img = offscreen.makeImageSnapshot();
+    offscreen.dispose();
+    setGlobalTileInCache(zoomFactor, row, col, img);
+    clearGlobalTileCache(zoomFactor, row, col, verticalTiles);
+    return img;
+  }
+
+
   const getImageForTile = (xOff: number, yOff: number, scale: number, row: number, col: number) => {
     "worklet";
 
@@ -143,14 +248,8 @@ const App = () => {
     const offsetRow = Math.floor((-yOff % canvasHeight)/TILE_SIZE);
 
     const calculatedRow = offsetRow >= row ? iteration * verticalTiles + row : (iteration -1) * verticalTiles + row;
-
-    const verticalTilesForPage = Math.ceil(pageDimensions.value[0][1] / TILE_SIZE);
-    const localRow = calculatedRow % verticalTilesForPage;
-    const page = Math.floor(calculatedRow / verticalTilesForPage);
-    if (page < 0) {
-      return null;
-    }
-    const img = getOffScreenTile(page, localRow, col, scale);
+    
+    const img = getTileImage(calculatedRow, col, scale);
     return img;
   }
 
@@ -168,6 +267,18 @@ const App = () => {
           {[...Array(horizontalTiles).keys()].map((horizontalTileId) => {
             return [...Array(verticalTiles).keys()].map((verticalTileId) => {
               return ( 
+                <Group>
+                <Rect x={useDerivedValue(() => scaleVal.value * (offsetX.value + horizontalTileId*TILE_SIZE))}
+                y={useDerivedValue(() =>  { 
+                  const absT = (offsetY.value + verticalTileId * TILE_SIZE) % canvasHeight;
+                  const yPos =  absT < 0? absT + canvasHeight: absT;
+                  return scaleVal.value * (yPos - TILE_SIZE * 2);})}
+                color={"black"}
+                strokeWidth={1}
+                style={"stroke"}
+                width={useDerivedValue(() => TILE_SIZE * scaleVal.value)} 
+                height={useDerivedValue(() => TILE_SIZE * scaleVal.value)}
+                  />
                 <Image 
                 x={useDerivedValue(() => scaleVal.value * (offsetX.value + horizontalTileId*TILE_SIZE))}
                 y={useDerivedValue(() =>  { 
@@ -181,7 +292,11 @@ const App = () => {
                   verticalTileId, 
                   horizontalTileId))}
                 width={useDerivedValue(() => TILE_SIZE * scaleVal.value)} 
-                height={useDerivedValue(() => TILE_SIZE * scaleVal.value)}/>);
+                height={useDerivedValue(() => TILE_SIZE * scaleVal.value)}
+                
+                />
+                </Group>
+                );
               });
           })}
           </Group> 

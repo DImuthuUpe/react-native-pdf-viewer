@@ -129,15 +129,15 @@ namespace margelo::nitro::pdfium {
             return buf;
         }
                     
-        FPDFBitmap_FillRect(bitmapHandle, 0, 0, tileSize, tileSize, 0x00000000);
+        FPDFBitmap_FillRect(bitmapHandle, 0, 0, tileSize, tileSize, 0xffffffff);
         
         float xScale = scale;//  * displayWidth / width;
         float yScale = scale;//  * displayWidth / width;
         float xTranslate = column * tileSizeD;
         float yTranslate = row * tileSizeD;
         std::thread::id this_id = std::this_thread::get_id();
-        std::cout << "[Thread " << this_id << "] Page " << pageNumber << " matric scale "
-                << scale << " xTranslate " << xTranslate << " yTranslate " << yTranslate << std::endl;
+        //std::cout << "[Thread " << this_id << "] Page " << pageNumber << " matric scale "
+        //        << scale << " xTranslate " << xTranslate << " yTranslate " << yTranslate << std::endl;
         FS_MATRIX matrix = {xScale, 0.0, 0.0, yScale, xTranslate, yTranslate}; // Flipped Y-axis.
         FS_RECTF clip = {0, 0, (float)tileSize, (float)tileSize};
 

@@ -1,6 +1,61 @@
 import { SkImage } from "@shopify/react-native-skia";
 
 
+const initGlobalTileCache = (scale: number, row: number) => {
+    "worklet";
+    if (global.globalTileCache == null) {
+        global.globalTileCache = {};
+    }
+
+    if (global.globalTileCache[scale] == null) {
+        global.globalTileCache[scale] = {};
+    } 
+
+    if (global.globalTileCache[scale][row] == null) {
+        global.globalTileCache[scale][row] = {};
+    }
+}
+
+export const getGlobalTileFromCache = (scale: number, row: number, col: number) => {
+    "worklet";
+    console.log("getGlobalTileFromCache: " + scale + " " + row + " " + col);
+    initGlobalTileCache(scale, row);
+    return global.globalTileCache[scale][row]?.[col];
+}    
+
+export const setGlobalTileInCache = (scale: number, row: number, col: number, img: SkImage) => {
+    "worklet";
+    initGlobalTileCache(scale, row);
+    global.globalTileCache[scale][row][col] = img;
+}
+
+export const clearGlobalTileCache = (scale: number, row: number, col: number, verticalTiles: number) => {
+    "worklet";
+    if (global.globalTileCache != null) {
+        const scales = Object.keys(global.globalTileCache);
+        for (let i = 0; i < scales.length; i++) {
+            const rows = Object.keys(global.globalTileCache[scales[i]]);
+            for (let j = 0; j < rows.length; j++) {
+                if (Math.abs(rows[j] - row) <= verticalTiles * 2) {
+                    continue;
+                }
+                const cols = Object.keys(global.globalTileCache[scales[i]][rows[j]]);
+                for (let k = 0; k < cols.length; k++) { 
+                    console.log("deleting tile: " + scales[i] + " " + rows[j] + " " + cols[k]);
+                    const img = global.globalTileCache[scales[i]][rows[j]][cols[k]];
+                    delete global.globalTileCache[scales[i]][rows[j]][cols[k]];
+                    img.dispose();
+                }       
+
+                delete global.globalTileCache[scales[i]][rows[j]];
+            }
+            delete global.globalTileCache[scales[i]];
+        }
+        delete global.globalTileCache;
+        global.gc();
+    }
+}
+
 const initTileCache = (page: number, scale: number) => {
     "worklet";
     if (global.skImageCache == null) {
@@ -15,11 +70,12 @@ const initTileCache = (page: number, scale: number) => {
     global.skImageCache[page][scale] = {};
     }  
 }
+
 export const getTileFromCache = (page: number, scale: number, gridLocation: string) => {
     "worklet";
     initTileCache(page, scale);
     return global.skImageCache[page][scale]?.[gridLocation];
-  }
+}
 
 
 export const deleteAllTilesFromCacheForPage = (page: number) => {
