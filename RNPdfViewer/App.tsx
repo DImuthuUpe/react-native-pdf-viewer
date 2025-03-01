@@ -156,26 +156,20 @@ const App = () => {
     scaleEndValue.value = e.scale;
   });
 
-  const getTileFromPdfium = (page: number, row: number, col: number, zoomFactor: number) => {
+  const getTileFromPdfium = (page: number, 
+    x: number, 
+    y: number, 
+    width: number, 
+    height: number,  
+    zoomFactor: number) => {
     "worklet";
 
-    const pageWidth = pageDimension.value[page][0];
-    const pageHeight = pageDimension.value[page][1];
-
-    const tileStartX = col * TILE_SIZE;
-    const tileEndX = (col + 1) * TILE_SIZE;
-    const tileWidth = pageWidth > tileEndX?  
-      TILE_SIZE * zoomFactor: tileStartX > pageWidth? 
-      0: Math.ceil(pageWidth - tileStartX) * zoomFactor;
-
-    if (tileWidth == 0) {
-      return null;
-    }
-    const tileHeight = TILE_SIZE * zoomFactor;
+    const tileWidth = width * zoomFactor;
+    const tileHeight = height * zoomFactor;
     const tileBuf = boxedPdfium.unbox().getTile(
       page, 
-      -row  * TILE_SIZE * zoomFactor, 
-      -col * TILE_SIZE * zoomFactor, 
+      -y * zoomFactor, 
+      -x * zoomFactor, 
       width, 
       tileWidth, 
       tileHeight, 
@@ -194,8 +188,8 @@ const App = () => {
     );
 
     const offscreen = Skia.Surface.MakeOffscreen(
-      TILE_SIZE * zoomFactor, 
-      TILE_SIZE * zoomFactor)!;
+      tileWidth * zoomFactor, 
+      tileHeight * zoomFactor)!;
 
     const canvas = offscreen.getCanvas();
     canvas.drawImage(img as SkImage, 0, 0);
@@ -206,16 +200,11 @@ const App = () => {
     return offImg;
   }
 
-  const getOffScreenTile = (pageNum: number, row: number, col: number, scale: number) => {
-    "worklet";
+  const getOffScreenTile = (pageNum: number, x: number, y: number, tileWidth: number, tileHeight: number,  scale: number) => {
+    "worklet";  
+    
 
-    const gridLocation = `${col}-${row}`;
-    var img = getTileFromCache(pageNum, scale, gridLocation);
-    if (img == null) {
-      img = getTileFromPdfium(pageNum, row, col, PIXEL_ZOOM * Math.ceil(scale));
-      setTileInCache(pageNum, scale, gridLocation, img);
-      cleanUpOutofScaleTiles(pageNum, scale);
-    }
+    const img = getTileFromPdfium(pageNum, x, y, tileWidth, tileHeight, PIXEL_ZOOM * Math.ceil(scale));
     return img;
   }
 
@@ -240,14 +229,32 @@ const App = () => {
 
     for (let partIdx = 0; partIdx <= 1; partIdx++) {
       const pageNum = tilePages[0 + partIdx * 3];
-      const pageTile = tilePages[1 + partIdx * 3];
+      const rowIdx = tilePages[1 + partIdx * 3];
       const translation = tilePages[2 + partIdx * 3];
       if (pageNum == -1) {
         continue;
       }
+      
+
+      const pageXOffset = 200;
+      const x = col * TILE_SIZE;
+      const y = rowIdx * TILE_SIZE;
+
+      const pageWidth = pageDimension.value[pageNum][0];
+
+      const tileStartX = x;
+      const tileEndX = x + TILE_SIZE;
+      const tileWidth = pageWidth > tileEndX?  
+        TILE_SIZE: tileStartX > pageWidth? 
+        0: Math.ceil(pageWidth - tileStartX);
+
+      if (tileWidth == 0) {
+        continue;
+      }
+
       canvas.save();
       canvas.translate(0, -translation * 2 * zoomFactor);
-      const img = getOffScreenTile(pageNum, pageTile, col, zoomFactor);
+      const img = getOffScreenTile(pageNum, x, y, tileWidth, TILE_SIZE, zoomFactor);
       if (img != null) {
         canvas.drawImage(img as SkImage, 0,0);
       }
