@@ -235,25 +235,42 @@ const App = () => {
         continue;
       }
       
+      const pageXOffset = 100;
+      const globalTileX = col * TILE_SIZE;
 
-      const pageXOffset = 200;
-      const x = col * TILE_SIZE;
+      let x = -1;
+      let xOff = 0;
+      if (globalTileX < pageXOffset && globalTileX + TILE_SIZE > pageXOffset) {
+        xOff = pageXOffset - globalTileX;
+        x = 0
+      } else if (globalTileX >= pageXOffset) {
+        x = globalTileX - pageXOffset;
+      }
+
+      if (x == -1) {
+        continue;
+      }
+
       const y = rowIdx * TILE_SIZE;
 
       const pageWidth = pageDimension.value[pageNum][0];
+      let tileWidth = 0;
+      if (x > pageWidth) {
+        continue
+      }
 
-      const tileStartX = x;
-      const tileEndX = x + TILE_SIZE;
-      const tileWidth = pageWidth > tileEndX?  
-        TILE_SIZE: tileStartX > pageWidth? 
-        0: Math.ceil(pageWidth - tileStartX);
+      if (x + TILE_SIZE > pageWidth) {
+        tileWidth = pageWidth - x;
+      } else {
+        tileWidth = TILE_SIZE;
+      }
 
-      if (tileWidth == 0) {
+      if (tileWidth <= 0) {
         continue;
       }
 
       canvas.save();
-      canvas.translate(0, -translation * 2 * zoomFactor);
+      canvas.translate(xOff * PIXEL_ZOOM * zoomFactor, -translation * PIXEL_ZOOM * zoomFactor);
       const img = getOffScreenTile(pageNum, x, y, tileWidth, TILE_SIZE, zoomFactor);
       if (img != null) {
         canvas.drawImage(img as SkImage, 0,0);
