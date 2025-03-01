@@ -95,11 +95,12 @@ namespace margelo::nitro::pdfium {
         }
     }
 
-    std::shared_ptr<ArrayBuffer> HybridPdfiumUtil::getTile(double pageNumber, double row, double column, double displayWidth, double tileSizeD, double scale) {
+    std::shared_ptr<ArrayBuffer> HybridPdfiumUtil::getTile(double pageNumber, double row, double column, double displayWidth, double tileWidthD, double tileHeightD, double scale) {
         
         
-        int tileSize = (int)tileSizeD;
-        size_t len = tileSize * tileSize * 4; // Initialize the length. 4 bytes are for RGBA chanels for each pixel
+        int tileWidth = (int)tileWidthD;
+        int tileHeight = (int)tileHeightD;
+        size_t len = tileWidth * tileHeight * 4; // Initialize the length. 4 bytes are for RGBA chanels for each pixel
         uint8_t* stream = new uint8_t[len]; // Allocate internal memory
         std::shared_ptr<ArrayBuffer> buf = ArrayBuffer::wrap(stream, len, [=]() {
             // This will clean up when the reference count is 0. Which means when the JS thread runs the GC cycle
@@ -121,25 +122,25 @@ namespace margelo::nitro::pdfium {
         
         double width = FPDF_GetPageWidth(page);
         double height = FPDF_GetPageHeight(page);
-        int stride = tileSize * 4;
-        FPDF_BITMAP bitmapHandle = FPDFBitmap_CreateEx(tileSize, tileSize, FPDFBitmap_BGRA, buf->data(), stride);
+        int stride = tileWidth * 4;
+        FPDF_BITMAP bitmapHandle = FPDFBitmap_CreateEx(tileWidth, tileHeight, FPDFBitmap_BGRA, buf->data(), stride);
                     
         if (!bitmapHandle) {
             std::cerr << "Failed to load the bitmap handle for document." << std::endl;
             return buf;
         }
                     
-        FPDFBitmap_FillRect(bitmapHandle, 0, 0, tileSize, tileSize, 0xffffffff);
+        FPDFBitmap_FillRect(bitmapHandle, 0, 0, tileWidth, tileHeight, 0xffffffff);
         
         float xScale = scale;//  * displayWidth / width;
         float yScale = scale;//  * displayWidth / width;
-        float xTranslate = column * tileSizeD;
-        float yTranslate = row * tileSizeD;
+        float xTranslate = (float)column;
+        float yTranslate = (float)row;
         std::thread::id this_id = std::this_thread::get_id();
         //std::cout << "[Thread " << this_id << "] Page " << pageNumber << " matric scale "
         //        << scale << " xTranslate " << xTranslate << " yTranslate " << yTranslate << std::endl;
         FS_MATRIX matrix = {xScale, 0.0, 0.0, yScale, xTranslate, yTranslate}; // Flipped Y-axis.
-        FS_RECTF clip = {0, 0, (float)tileSize, (float)tileSize};
+        FS_RECTF clip = {0, 0, (float)tileWidthD, (float)tileHeightD};
 
         FPDF_RenderPageBitmapWithMatrix(bitmapHandle, page, &matrix, &clip, 0);
         

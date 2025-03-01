@@ -36,7 +36,7 @@ export const clearGlobalTileCache = (scale: number, row: number, col: number, ve
         for (let i = 0; i < scales.length; i++) {
             const rows = Object.keys(global.globalTileCache[scales[i]]);
             for (let j = 0; j < rows.length; j++) {
-                if (Math.abs(rows[j] - row) <= verticalTiles * 2) {
+                if (Math.abs(rows[j] - row) <= verticalTiles + 1) {
                     continue;
                 }
                 const cols = Object.keys(global.globalTileCache[scales[i]][rows[j]]);
@@ -86,7 +86,7 @@ export const deleteAllTilesFromCacheForPage = (page: number) => {
 
             const gridLocations = Object.keys(global.skImageCache[page][scales[i]]);
             for (let j = 0; j < gridLocations.length; j++) {
-                global.skImageCache[page][scales[i]][gridLocations[j]].dispose();
+                global.skImageCache[page][scales[i]][gridLocations[j]]?.dispose();
                 delete global.skImageCache[page][scales[i]][gridLocations[j]];
             }
             delete global.skImageCache[page][scales[i]];
@@ -126,7 +126,7 @@ export const cleanUpOutofScaleTiles = (page: number, currentScale: number) => {
         if (scales[i] != currentScale) {
             const gridLocations = Object.keys(global.skImageCache[page][scales[i]]);
             for (let j = 0; j < gridLocations.length; j++) {
-                global.skImageCache[page][scales[i]][gridLocations[j]].dispose();
+                global.skImageCache[page][scales[i]][gridLocations[j]]?.dispose();
                 delete global.skImageCache[page][scales[i]][gridLocations[j]];
             }
             delete global.skImageCache[page][scales[i]];

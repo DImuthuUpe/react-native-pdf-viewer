@@ -55,7 +55,7 @@ namespace margelo::nitro::pdfium {
       virtual double add(double a, double b) = 0;
       virtual void openPdf(const std::string& filePath) = 0;
       virtual void closePdf() = 0;
-      virtual std::shared_ptr<ArrayBuffer> getTile(double pageNumber, double row, double column, double displayWidth, double tileSize, double scale) = 0;
+      virtual std::shared_ptr<ArrayBuffer> getTile(double pageNumber, double row, double column, double displayWidth, double tileWidth, double tileHeight, double scale) = 0;
       virtual double getPageCount() = 0;
       virtual std::vector<std::tuple<double, double, double>> getAllPageDimensions() = 0;
 

@@ -6,7 +6,7 @@ import Animated, { useDerivedValue, useSharedValue, withDecay } from "react-nati
 import RNFS from 'react-native-fs';
 import { NitroModules } from "react-native-nitro-modules";
 import { cleanUpOutofScaleTiles, deleteAllTilesFromCacheForPage, getTileFromCache, setTileInCache, getGlobalTileFromCache, setGlobalTileInCache, clearGlobalTileCache } from "./src/TileCache";
-const fileName = 'uneven.pdf';//'A17_FlightPlan.pdf';//'sample.pdf'; // Relative to assets
+const fileName = 'sample.pdf';//'uneven.pdf';//'A17_FlightPlan.pdf';//'sample.pdf'; // Relative to assets
 let filePath = '';
 
 if (Platform.OS === 'ios') {
@@ -118,6 +118,7 @@ const App = () => {
   const matrix = useSharedValue(Matrix4());
   const scaleEndValue = useSharedValue<number>(1);
   const pageCoverageTiles = useSharedValue(tilePageCoverage);
+  const pageDimension = useSharedValue(pageDims);
 
   const width = stageWidth;
 
@@ -157,18 +158,39 @@ const App = () => {
 
   const getTileFromPdfium = (page: number, row: number, col: number, zoomFactor: number) => {
     "worklet";
-    const tileBuf = boxedPdfium.unbox().getTile(page, -row, -col, width, TILE_SIZE * zoomFactor, zoomFactor);
+
+    const pageWidth = pageDimension.value[page][0];
+    const pageHeight = pageDimension.value[page][1];
+
+    const tileStartX = col * TILE_SIZE;
+    const tileEndX = (col + 1) * TILE_SIZE;
+    const tileWidth = pageWidth > tileEndX?  
+      TILE_SIZE * zoomFactor: tileStartX > pageWidth? 
+      0: Math.ceil(pageWidth - tileStartX) * zoomFactor;
+
+    if (tileWidth == 0) {
+      return null;
+    }
+    const tileHeight = TILE_SIZE * zoomFactor;
+    const tileBuf = boxedPdfium.unbox().getTile(
+      page, 
+      -row  * TILE_SIZE * zoomFactor, 
+      -col * TILE_SIZE * zoomFactor, 
+      width, 
+      tileWidth, 
+      tileHeight, 
+      zoomFactor);
 
     const data = Skia.Data.fromBytes(new Uint8Array(tileBuf));
     const img = Skia.Image.MakeImage(
       {
-        width: TILE_SIZE * zoomFactor,
-        height: TILE_SIZE * zoomFactor,
+        width: tileWidth,
+        height: tileHeight,
         alphaType: AlphaType.Opaque,
         colorType: ColorType.BGRA_8888,
       },
       data,
-      TILE_SIZE * zoomFactor * 4
+      tileWidth * 4
     );
 
     const offscreen = Skia.Surface.MakeOffscreen(
@@ -206,8 +228,8 @@ const App = () => {
     }
 
     const offscreen = Skia.Surface.MakeOffscreen(
-      TILE_SIZE * 2, 
-      TILE_SIZE * 2)!;
+      TILE_SIZE * 2 * zoomFactor, 
+      TILE_SIZE * 2 * zoomFactor)!;
 
     const canvas = offscreen.getCanvas();
 
@@ -224,9 +246,11 @@ const App = () => {
         continue;
       }
       canvas.save();
-      canvas.translate(0, -translation * 2);
+      canvas.translate(0, -translation * 2 * zoomFactor);
       const img = getOffScreenTile(pageNum, pageTile, col, zoomFactor);
-      canvas.drawImage(img as SkImage, 0,0);
+      if (img != null) {
+        canvas.drawImage(img as SkImage, 0,0);
+      }
       canvas.restore();
     }
 
@@ -273,7 +297,7 @@ const App = () => {
                 y={useDerivedValue(() =>  { 
                   const absT = (offsetY.value + verticalTileId * TILE_SIZE) % canvasHeight;
                   const yPos =  absT < 0? absT + canvasHeight: absT;
-                  return scaleVal.value * (yPos - TILE_SIZE * 2);})}
+                  return scaleVal.value * (yPos - TILE_SIZE);})}
                 color={"black"}
                 strokeWidth={1}
                 style={"stroke"}
@@ -285,11 +309,11 @@ const App = () => {
                 y={useDerivedValue(() =>  { 
                   const absT = (offsetY.value + verticalTileId * TILE_SIZE) % canvasHeight;
                   const yPos =  absT < 0? absT + canvasHeight: absT;
-                  return scaleVal.value * (yPos - TILE_SIZE * 2);})}
+                  return scaleVal.value * (yPos - TILE_SIZE );})}
                 image={useDerivedValue(() => getImageForTile(
                   offsetX.value, 
                   offsetY.value, 
-                  scaleEndValue.value, 
+                  Math.ceil(scaleEndValue.value), 
                   verticalTileId, 
                   horizontalTileId))}
                 width={useDerivedValue(() => TILE_SIZE * scaleVal.value)} 
