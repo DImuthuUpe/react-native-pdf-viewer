@@ -18,7 +18,7 @@ const initGlobalTileCache = (scale: number, row: number) => {
 
 export const getGlobalTileFromCache = (scale: number, row: number, col: number) => {
     "worklet";
-    console.log("getGlobalTileFromCache: " + scale + " " + row + " " + col);
+    //console.log("getGlobalTileFromCache: " + scale + " " + row + " " + col);
     initGlobalTileCache(scale, row);
     return global.globalTileCache[scale][row]?.[col];
 }    
@@ -41,18 +41,14 @@ export const clearGlobalTileCache = (scale: number, row: number, col: number, ve
                 }
                 const cols = Object.keys(global.globalTileCache[scales[i]][rows[j]]);
                 for (let k = 0; k < cols.length; k++) { 
-                    console.log("deleting tile: " + scales[i] + " " + rows[j] + " " + cols[k]);
+                    //console.log("deleting tile: " + scales[i] + " " + rows[j] + " " + cols[k]);
                     const img = global.globalTileCache[scales[i]][rows[j]][cols[k]];
                     delete global.globalTileCache[scales[i]][rows[j]][cols[k]];
                     img.dispose();
+                    global.gc();
                 }       
-
-                delete global.globalTileCache[scales[i]][rows[j]];
             }
-            delete global.globalTileCache[scales[i]];
         }
-        delete global.globalTileCache;
-        global.gc();
     }
 }
 

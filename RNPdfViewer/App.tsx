@@ -6,7 +6,7 @@ import Animated, { useDerivedValue, useSharedValue, withDecay } from "react-nati
 import RNFS from 'react-native-fs';
 import { NitroModules } from "react-native-nitro-modules";
 import { cleanUpOutofScaleTiles, deleteAllTilesFromCacheForPage, getTileFromCache, setTileInCache, getGlobalTileFromCache, setGlobalTileInCache, clearGlobalTileCache } from "./src/TileCache";
-const fileName = 'sample.pdf';//'A17_FlightPlan.pdf';//'sample.pdf'; // Relative to assets
+const fileName = 'uneven.pdf';//'A17_FlightPlan.pdf';//'sample.pdf'; // Relative to assets
 let filePath = '';
 
 if (Platform.OS === 'ios') {
@@ -32,7 +32,7 @@ const {width, height} = Dimensions.get('window');
 const TILE_SIZE = 256;
 
 const verticalTiles = Math.ceil(height / TILE_SIZE) * 2;
-const horizontalTiles = Math.ceil(width / TILE_SIZE)-1;
+const horizontalTiles = Math.ceil(width / TILE_SIZE);
 const canvasHeight = verticalTiles * TILE_SIZE;
 const canvasWidth = horizontalTiles * TILE_SIZE;
 
@@ -43,8 +43,10 @@ const MAX_SCALE = 3;
 
 const pageDims = PdfiumModule.getAllPageDimensions();
 
-const tilePageCoverage: [number, number, number, number][] = [];
-
+                        // page1 , pageTile1, offset1, page2, pageTile2, offset2
+const tilePageCoverage: [number, number, number, number, number, number][] = [];
+ 
+const parts : [number, number, number][] = [];
 for (let tileStep = 0; tileStep * TILE_SIZE < pageDims[PAGE_COUNT -1][2]; tileStep++) {
   const tileStartY = tileStep * TILE_SIZE;
   const tileEndY = tileStartY + TILE_SIZE;
@@ -52,7 +54,7 @@ for (let tileStep = 0; tileStep * TILE_SIZE < pageDims[PAGE_COUNT -1][2]; tileSt
     const pageHeight = pageDim[1];
     const pageStartY = pageDim[2] - pageHeight;
     const pageEndY = pageStartY + pageHeight;
-
+ 
     if (tileStartY >= pageStartY && tileEndY <= pageEndY) {
       // Tile is fully covered by page
       const tileOffset = tileStartY - pageStartY;
@@ -60,30 +62,41 @@ for (let tileStep = 0; tileStep * TILE_SIZE < pageDims[PAGE_COUNT -1][2]; tileSt
         // Tile is aligned with page tile
         const pageTile = Math.floor(tileOffset / TILE_SIZE);
         const translation = 0
-        tilePageCoverage.push([tileStep, pageNum, pageTile, translation]);
+        parts.push([pageNum, pageTile, translation]);
       } else {
         // Tile is covered by 2 page tiles
         const pageTile1 = Math.floor(tileOffset / TILE_SIZE);
         const translation1 = tileOffset - pageTile1 * TILE_SIZE;
-
+ 
         const pageTile2 = pageTile1 + 1;
         const translation2 = TILE_SIZE - translation1;
         
-        tilePageCoverage.push([tileStep, pageNum, pageTile1, translation1]);
-        tilePageCoverage.push([tileStep, pageNum, pageTile2, -translation2]);
+        parts.push([pageNum, pageTile1, translation1]);
+        parts.push([pageNum, pageTile2, -translation2]);
       }
     } else if (tileStartY < pageStartY && tileEndY > pageStartY) {
       // Tile is partially covered by page top part
       const pageTile = 0;
       const translation = tileStartY - pageStartY;
-      tilePageCoverage.push([tileStep, pageNum, pageTile, translation]);
+      parts.push([pageNum, pageTile, translation]);
     } else if (tileStartY < pageEndY && tileEndY > pageEndY) {
       // Tile is partially covered by page bottom part
       const pageTile = Math.floor((tileStartY - pageStartY) / TILE_SIZE);
       const translation = tileStartY - (pageStartY + pageTile * TILE_SIZE);
-      tilePageCoverage.push([tileStep, pageNum, pageTile, translation]);
+      parts.push([pageNum, pageTile, translation]);
     }
   });
+ 
+  if (parts.length == 2) {
+    tilePageCoverage.push([parts[0][0], parts[0][1], parts[0][2], parts[1][0], parts[1][1], parts[1][2]]);
+    parts.length = 0;
+  } else if (parts.length == 1) {
+    tilePageCoverage.push([parts[0][0], parts[0][1], parts[0][2], -1, -1, -1]);
+    parts.length = 0;
+  } else {
+    tilePageCoverage.push([-1, -1, -1, -1, -1, -1]);
+  }
+ 
 }
 
 pageDims.forEach((pageDim, pageNum) => {
@@ -187,14 +200,6 @@ const App = () => {
   const getTileImage = (row: number, col: number, zoomFactor: number) => {
     "worklet";
 
-    if (row != 5 && row != 4) {
-      //return null;
-    }
-
-    if (col != 0) {
-      //return null;
-    }
-
     const cacheImg = getGlobalTileFromCache(zoomFactor, row, col);
     if (cacheImg != null) {
       return cacheImg;
@@ -206,28 +211,24 @@ const App = () => {
 
     const canvas = offscreen.getCanvas();
 
-    for (let i = 0; i < pageCoverageTiles.value.length; i++) {
-      const tilePage = pageCoverageTiles.value[i];
-      if (tilePage[0] == row) {
-        canvas.save();
-        const pageNum = tilePage[1];
-        const pageTile = tilePage[2];
-        const translation = tilePage[3];
-        if (translation == -24) {
-          //continue
-        }
-        //console.log(`Drawing tile page : ${pageNum} ${pageTile} ${translation}`);
-        canvas.translate(0, -translation * 2);
-        const img = getOffScreenTile(pageNum, pageTile, col, zoomFactor);
-        canvas.drawImage(img as SkImage, 0, 0);
-        canvas.restore();
-      } else {
-        if (tilePage[0] > row) {
-          break;
-        }
-      }
+    const tilePages = pageCoverageTiles.value[row];
+    if (tilePages== null) {
+      return null;
     }
 
+    for (let partIdx = 0; partIdx <= 1; partIdx++) {
+      const pageNum = tilePages[0 + partIdx * 3];
+      const pageTile = tilePages[1 + partIdx * 3];
+      const translation = tilePages[2 + partIdx * 3];
+      if (pageNum == -1) {
+        continue;
+      }
+      canvas.save();
+      canvas.translate(0, -translation * 2);
+      const img = getOffScreenTile(pageNum, pageTile, col, zoomFactor);
+      canvas.drawImage(img as SkImage, 0,0);
+      canvas.restore();
+    }
 
     const img = offscreen.makeImageSnapshot();
     offscreen.dispose();
