@@ -1,4 +1,4 @@
-import { AlphaType, Canvas, ColorType, Group, Image, Matrix4, multiply4, Rect, scale, Skia, SkImage } from "@shopify/react-native-skia";
+import { AlphaType, Canvas, ColorType, Group, Image, Matrix4, multiply4, Rect, scale, SkCanvas, Skia, SkImage } from "@shopify/react-native-skia";
 import { Dimensions, Platform, StyleSheet, View } from "react-native";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import { PdfiumModule } from "react-native-pdfium";
@@ -201,9 +201,19 @@ const App = () => {
       tileWidth * 2
     );
 
-    const offscreen = Skia.Surface.MakeOffscreen(
-      TILE_SIZE * zoomFactor,
-      TILE_SIZE * zoomFactor)!;
+    if (global.coffscreens == null) {
+      global.coffscreens = {};
+    }
+
+    if (global.coffscreens[zoomFactor] == null) {
+      global.coffscreens[zoomFactor] = {};
+
+      global.coffscreens[zoomFactor] = Skia.Surface.MakeOffscreen(
+        TILE_SIZE * zoomFactor,
+        TILE_SIZE * zoomFactor)!;
+    }
+
+    const offscreen = global.coffscreens[zoomFactor];
 
     if (offscreen == null) {
       return null;
@@ -213,7 +223,7 @@ const App = () => {
     const offImg = offscreen.makeImageSnapshot();
     img?.dispose();
     data.dispose();
-    offscreen.dispose();
+    //offscreen.dispose();
     return offImg;
   }
 
@@ -245,11 +255,23 @@ const App = () => {
       return cacheImg;
     }
 
-    const offscreen = Skia.Surface.MakeOffscreen(
-      TILE_SIZE * 2 * zoomFactor,
-      TILE_SIZE * 2 * zoomFactor)!;
+    if (global.offscreens == null) {
+      global.offscreens = {};
+    }
 
-    const canvas = offscreen.getCanvas();
+    if (global.offscreens[zoomFactor] == null) {
+      global.offscreens[zoomFactor] = {};
+
+      global.offscreens[zoomFactor] = Skia.Surface.MakeOffscreen(
+        TILE_SIZE * PIXEL_ZOOM * zoomFactor,
+        TILE_SIZE * PIXEL_ZOOM * zoomFactor)!;
+    }
+    const offscreen = global.offscreens[zoomFactor];
+
+    const canvas:SkCanvas = offscreen.getCanvas();
+    const resetColor = Skia.Color("transparent");
+    canvas.clear(resetColor);
+    //canvas.clear(0xFFFFFFFF);
 
     const tilePages = pageCoverageTiles.value[row];
     if (tilePages== null) {
@@ -274,7 +296,7 @@ const App = () => {
     }
 
     const img = offscreen.makeImageSnapshot();
-    offscreen.dispose();
+    //offscreen.dispose();
     setGlobalTileInCache(zoomFactor, row, col, img);
     clearGlobalTileCache(zoomFactor, row, col, verticalTiles);
     return img;
