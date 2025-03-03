@@ -3,6 +3,8 @@
 #include "HybridPdfiumUtilSpec.hpp"
 #include "fpdfview.h"
 #include "fpdf_text.h"
+#include "TileCache.hpp"
+
 
 namespace margelo::nitro::pdfium {
 
@@ -19,6 +21,7 @@ namespace margelo::nitro::pdfium {
             std::vector<std::tuple<double, double, double>> getAllPageDimensions() override;
             
             std::shared_ptr<ArrayBuffer> getTile(double pageNumber, double row, double column, double displayWidth, double tileWidth, double tileHeight, double scale) override;
+            std::shared_ptr<ArrayBuffer> getTileBgr565(double pageNumber, double row, double column, double displayWidth, double tileWidth, double tileHeight, double scale) override;
             ~HybridPdfiumUtil() {
                 clearPageCache();
                 if (m_pdfDoc != nullptr) {
@@ -31,6 +34,6 @@ namespace margelo::nitro::pdfium {
         std::unordered_map<int, FPDF_PAGE> m_pageCache;
         FPDF_PAGE getPage(FPDF_DOCUMENT m_pdfDoc, int pageIndex);
         void clearPageCache();
-
+        LRUCache<int, std::string> cache();
     };
 }

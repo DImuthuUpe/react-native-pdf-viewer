@@ -29,6 +29,47 @@ export const setGlobalTileInCache = (scale: number, row: number, col: number, im
     global.globalTileCache[scale][row][col] = img;
 }
 
+export const clearOutofScaleAllTiles = (scale: number) => {
+    "worklet";
+    if (global.globalTileCache != null) {
+        const scales = Object.keys(global.globalTileCache);
+        for (let i = 0; i < scales.length; i++) {
+            if (Number(scales[i]) != scale) {
+                const rows = Object.keys(global.globalTileCache[scales[i]]);
+                for (let j = 0; j < rows.length; j++) {
+                    const cols = Object.keys(global.globalTileCache[scales[i]][rows[j]]);
+                    for (let k = 0; k < cols.length; k++) {
+                        const img = global.globalTileCache[scales[i]][rows[j]][cols[k]];
+                        delete global.globalTileCache[scales[i]][rows[j]][cols[k]];
+                        img.dispose();
+                    }
+                }
+                delete global.globalTileCache[scales[i]];
+            }
+        }
+    }
+
+    if (global.skImageCache != null) {
+        const pages = Object.keys(global.skImageCache);
+        for (let i = 0; i < pages.length; i++) {
+            const scales = Object.keys(global.skImageCache[pages[i]]);
+            for (let j = 0; j < scales.length; j++) {
+                if (Number(scales[j]) != scale) {
+                    const gridLocations = Object.keys(global.skImageCache[pages[i]][scales[j]]);
+                    for (let k = 0; k < gridLocations.length; k++) {
+                        global.skImageCache[pages[i]][scales[j]][gridLocations[k]]?.dispose();
+                        delete global.skImageCache[pages[i]][scales[j]][gridLocations[k]];
+                    }
+                    delete global.skImageCache[pages[i]][scales[j]];
+                }
+            }
+        }
+    }
+
+
+    global.gc();
+}
+
 export const clearGlobalTileCache = (scale: number, row: number, col: number, verticalTiles: number) => {
     "worklet";
     if (global.globalTileCache != null) {
@@ -45,10 +86,21 @@ export const clearGlobalTileCache = (scale: number, row: number, col: number, ve
                     const img = global.globalTileCache[scales[i]][rows[j]][cols[k]];
                     delete global.globalTileCache[scales[i]][rows[j]][cols[k]];
                     img.dispose();
-                    global.gc();
+                    //global.gc();
                 }       
             }
         }
+        /*console.log("Global tile cache entries");
+        const scales2 = Object.keys(global.globalTileCache);
+        for (let i = 0; i < scales2.length; i++) {
+            const rows = Object.keys(global.globalTileCache[scales2[i]]);
+            for (let j = 0; j < rows.length; j++) {
+                const cols = Object.keys(global.globalTileCache[scales[i]][rows[j]]);
+                for (let k = 0; k < cols.length; k++) {
+                    console.log(scales[i] + " " + rows[j] + " " + cols);
+                }
+            }
+        }*/
     }
 }
 
@@ -100,7 +152,7 @@ export const setTileInCache = (page: number, scale: number, gridLocation: string
     "worklet";
     initTileCache(page, scale); 
     const pages = Object.keys(global.skImageCache);
-    if (pages.length > 5) {
+    if (pages.length > 2) {
         for (let i = 0; i < pages.length; i++) {
             if (Math.abs(pages[i] - page) > 3) {
                 deleteAllTilesFromCacheForPage(pages[i]);

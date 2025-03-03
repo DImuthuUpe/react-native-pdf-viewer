@@ -5,8 +5,8 @@ import { PdfiumModule } from "react-native-pdfium";
 import Animated, { useDerivedValue, useSharedValue, withDecay } from "react-native-reanimated";
 import RNFS from 'react-native-fs';
 import { NitroModules } from "react-native-nitro-modules";
-import { cleanUpOutofScaleTiles, deleteAllTilesFromCacheForPage, getTileFromCache, setTileInCache, getGlobalTileFromCache, setGlobalTileInCache, clearGlobalTileCache } from "./src/TileCache";
-const fileName = 'sample.pdf';//'uneven.pdf';//'A17_FlightPlan.pdf';//'sample.pdf'; // Relative to assets
+import { clearOutofScaleAllTiles, cleanUpOutofScaleTiles, getTileFromCache, setTileInCache, getGlobalTileFromCache, setGlobalTileInCache, clearGlobalTileCache } from "./src/TileCache";
+const fileName = 'A17_FlightPlan.pdf';//'uneven.pdf';//'A17_FlightPlan.pdf';//'sample.pdf'; // Relative to assets
 let filePath = '';
 
 if (Platform.OS === 'ios') {
@@ -39,13 +39,13 @@ const canvasWidth = horizontalTiles * TILE_SIZE;
 const PAGE_GAP = 10;
 const PAGE_COUNT = PdfiumModule.getPageCount();
 const PIXEL_ZOOM = 2;
-const MAX_SCALE = 3;
+const MAX_SCALE = 2.9;
 
 const pageDims = PdfiumModule.getAllPageDimensions();
 
                         // page1 , pageTile1, offset1, page2, pageTile2, offset2
 const tilePageCoverage: [number, number, number, number, number, number][] = [];
- 
+
 const parts : [number, number, number][] = [];
 for (let tileStep = 0; tileStep * TILE_SIZE < pageDims[PAGE_COUNT -1][2]; tileStep++) {
   const tileStartY = tileStep * TILE_SIZE;
@@ -54,7 +54,7 @@ for (let tileStep = 0; tileStep * TILE_SIZE < pageDims[PAGE_COUNT -1][2]; tileSt
     const pageHeight = pageDim[1];
     const pageStartY = pageDim[2] - pageHeight;
     const pageEndY = pageStartY + pageHeight;
- 
+
     if (tileStartY >= pageStartY && tileEndY <= pageEndY) {
       // Tile is fully covered by page
       const tileOffset = tileStartY - pageStartY;
@@ -67,10 +67,10 @@ for (let tileStep = 0; tileStep * TILE_SIZE < pageDims[PAGE_COUNT -1][2]; tileSt
         // Tile is covered by 2 page tiles
         const pageTile1 = Math.floor(tileOffset / TILE_SIZE);
         const translation1 = tileOffset - pageTile1 * TILE_SIZE;
- 
+
         const pageTile2 = pageTile1 + 1;
         const translation2 = TILE_SIZE - translation1;
-        
+
         parts.push([pageNum, pageTile1, translation1]);
         parts.push([pageNum, pageTile2, -translation2]);
       }
@@ -86,7 +86,7 @@ for (let tileStep = 0; tileStep * TILE_SIZE < pageDims[PAGE_COUNT -1][2]; tileSt
       parts.push([pageNum, pageTile, translation]);
     }
   });
- 
+
   if (parts.length == 2) {
     tilePageCoverage.push([parts[0][0], parts[0][1], parts[0][2], parts[1][0], parts[1][1], parts[1][2]]);
     parts.length = 0;
@@ -96,7 +96,7 @@ for (let tileStep = 0; tileStep * TILE_SIZE < pageDims[PAGE_COUNT -1][2]; tileSt
   } else {
     tilePageCoverage.push([-1, -1, -1, -1, -1, -1]);
   }
- 
+
 }
 
 pageDims.forEach((pageDim, pageNum) => {
@@ -107,7 +107,7 @@ tilePageCoverage.forEach((tilePage) => {
   console.log(tilePage);
 }
 );
-    
+
 const App = () => {
 
   const offsetX = useSharedValue<number>(0);
@@ -138,22 +138,30 @@ const App = () => {
   });
 
 
+  const resetCache = (lastScale: number) => {
+    "worklet";
+    console.log("Resetting cache for scale: " + Math.ceil(lastScale));
+    clearOutofScaleAllTiles(Math.ceil(lastScale));
+  }
+
   const pinchGesture = Gesture.Pinch()
   .onBegin((e) => {
       origin.value = { x: e.focalX, y: e.focalY };
       offset.value = matrix.value;
   })
   .onChange((e) => {
-    if (e.scale > MAX_SCALE) {
+    if (e.scale > MAX_SCALE || e.scale < 0.51) {
       return;
     }
+  
     scaleVal.value = e.scale;
     matrix.value = multiply4(
       offset.value,
       scale(e.scale, e.scale, 1, origin.value)
     );
   }).onEnd((e) => {
-    scaleEndValue.value = e.scale;
+    scaleEndValue.value = e.scale > MAX_SCALE? MAX_SCALE: e.scale < 0.51? 0.51: e.scale;
+    resetCache(e.scale);
   });
 
   const getTileFromPdfium = (page: number, row: number, col: number, zoomFactor: number) => {
@@ -164,21 +172,21 @@ const App = () => {
 
     const tileStartX = col * TILE_SIZE;
     const tileEndX = (col + 1) * TILE_SIZE;
-    const tileWidth = pageWidth > tileEndX?  
-      TILE_SIZE * zoomFactor: tileStartX > pageWidth? 
+    const tileWidth = pageWidth > tileEndX?
+      TILE_SIZE * zoomFactor: tileStartX > pageWidth?
       0: Math.ceil(pageWidth - tileStartX) * zoomFactor;
 
     if (tileWidth == 0) {
       return null;
     }
     const tileHeight = TILE_SIZE * zoomFactor;
-    const tileBuf = boxedPdfium.unbox().getTile(
-      page, 
-      -row  * TILE_SIZE * zoomFactor, 
-      -col * TILE_SIZE * zoomFactor, 
-      width, 
-      tileWidth, 
-      tileHeight, 
+    const tileBuf = boxedPdfium.unbox().getTileBgr565(
+      page,
+      -row  * TILE_SIZE * zoomFactor,
+      -col * TILE_SIZE * zoomFactor,
+      width,
+      tileWidth,
+      tileHeight,
       zoomFactor);
 
     const data = Skia.Data.fromBytes(new Uint8Array(tileBuf));
@@ -187,20 +195,23 @@ const App = () => {
         width: tileWidth,
         height: tileHeight,
         alphaType: AlphaType.Opaque,
-        colorType: ColorType.BGRA_8888,
+        colorType: ColorType.RGB_565,
       },
       data,
-      tileWidth * 4
+      tileWidth * 2
     );
 
     const offscreen = Skia.Surface.MakeOffscreen(
-      TILE_SIZE * zoomFactor, 
+      TILE_SIZE * zoomFactor,
       TILE_SIZE * zoomFactor)!;
 
+    if (offscreen == null) {
+      return null;
+    }
     const canvas = offscreen.getCanvas();
     canvas.drawImage(img as SkImage, 0, 0);
     const offImg = offscreen.makeImageSnapshot();
-    img?.dispose(); 
+    img?.dispose();
     data.dispose();
     offscreen.dispose();
     return offImg;
@@ -219,8 +230,15 @@ const App = () => {
     return img;
   }
 
-  const getTileImage = (row: number, col: number, zoomFactor: number) => {
+  const getTileImage = (row: number, col: number, zoomFactor: number, yOff: number) => {
     "worklet";
+    yOff += 2048 + TILE_SIZE; // This is always base coordinate as it the scale is handled by outside
+    const canvasStart = yOff = -yOff;  
+    const scaledHeight = height / zoomFactor;
+    const canvasEnd = yOff + scaledHeight;
+    if ((row - 1) * TILE_SIZE > canvasEnd || (row + 1) * TILE_SIZE < canvasStart) {
+      zoomFactor = 1;
+    }
 
     const cacheImg = getGlobalTileFromCache(zoomFactor, row, col);
     if (cacheImg != null) {
@@ -228,7 +246,7 @@ const App = () => {
     }
 
     const offscreen = Skia.Surface.MakeOffscreen(
-      TILE_SIZE * 2 * zoomFactor, 
+      TILE_SIZE * 2 * zoomFactor,
       TILE_SIZE * 2 * zoomFactor)!;
 
     const canvas = offscreen.getCanvas();
@@ -250,6 +268,7 @@ const App = () => {
       const img = getOffScreenTile(pageNum, pageTile, col, zoomFactor);
       if (img != null) {
         canvas.drawImage(img as SkImage, 0,0);
+        //img?.dispose();
       }
       canvas.restore();
     }
@@ -268,13 +287,13 @@ const App = () => {
     if (yOff > 0) {
       return null;
     }
-    
+
     const iteration = Math.floor(-yOff / canvasHeight);
     const offsetRow = Math.floor((-yOff % canvasHeight)/TILE_SIZE);
 
     const calculatedRow = offsetRow >= row ? iteration * verticalTiles + row : (iteration -1) * verticalTiles + row;
-    
-    const img = getTileImage(calculatedRow, col, scale);
+
+    const img = getTileImage(calculatedRow, col, scale, yOff);
     return img;
   }
 
@@ -287,51 +306,51 @@ const App = () => {
           height: stageHeight,
           backgroundColor: 'lightblue',
         }}
-        > 
+        >
           <Group>
           {[...Array(horizontalTiles).keys()].map((horizontalTileId) => {
             return [...Array(verticalTiles).keys()].map((verticalTileId) => {
-              return ( 
+              return (
                 <Group>
                 <Rect x={useDerivedValue(() => scaleVal.value * (offsetX.value + horizontalTileId*TILE_SIZE))}
-                y={useDerivedValue(() =>  { 
+                y={useDerivedValue(() =>  {
                   const absT = (offsetY.value + verticalTileId * TILE_SIZE) % canvasHeight;
                   const yPos =  absT < 0? absT + canvasHeight: absT;
                   return scaleVal.value * (yPos - TILE_SIZE);})}
                 color={"black"}
                 strokeWidth={1}
                 style={"stroke"}
-                width={useDerivedValue(() => TILE_SIZE * scaleVal.value)} 
+                width={useDerivedValue(() => TILE_SIZE * scaleVal.value)}
                 height={useDerivedValue(() => TILE_SIZE * scaleVal.value)}
                   />
-                <Image 
+                <Image
                 x={useDerivedValue(() => scaleVal.value * (offsetX.value + horizontalTileId*TILE_SIZE))}
-                y={useDerivedValue(() =>  { 
+                y={useDerivedValue(() =>  {
                   const absT = (offsetY.value + verticalTileId * TILE_SIZE) % canvasHeight;
                   const yPos =  absT < 0? absT + canvasHeight: absT;
                   return scaleVal.value * (yPos - TILE_SIZE );})}
                 image={useDerivedValue(() => getImageForTile(
-                  offsetX.value, 
-                  offsetY.value, 
-                  Math.ceil(scaleEndValue.value), 
-                  verticalTileId, 
+                  offsetX.value,
+                  offsetY.value,
+                  Math.ceil(scaleEndValue.value),
+                  verticalTileId,
                   horizontalTileId))}
-                width={useDerivedValue(() => TILE_SIZE * scaleVal.value)} 
+                width={useDerivedValue(() => TILE_SIZE * scaleVal.value)}
                 height={useDerivedValue(() => TILE_SIZE * scaleVal.value)}
-                
+
                 />
                 </Group>
                 );
               });
           })}
-          </Group> 
+          </Group>
         </Canvas>
         <GestureDetector gesture={Gesture.Race(pinchGesture, panGesture)}>
           <Animated.View style={[StyleSheet.absoluteFill]} />
         </GestureDetector>
       </View>
     </GestureHandlerRootView>
-    
+
   );
 };
 
