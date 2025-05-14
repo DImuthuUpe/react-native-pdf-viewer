@@ -34,6 +34,7 @@ namespace margelo::nitro::pdfium {
         std::unordered_map<int, FPDF_PAGE> m_pageCache;
         FPDF_PAGE getPage(FPDF_DOCUMENT m_pdfDoc, int pageIndex);
         void clearPageCache();
+        void cleanupDistantPages(int currentPageIndex);
         LRUCache<int, std::string> cache();
     };
 }

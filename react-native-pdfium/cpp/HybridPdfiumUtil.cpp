@@ -2,6 +2,27 @@
 
 namespace margelo::nitro::pdfium {
 
+    void HybridPdfiumUtil::cleanupDistantPages(int currentPageIndex) {
+        std::vector<int> keysToRemove;
+        
+        // Collect keys that are too far away from current page index
+        for (const auto& entry : m_pageCache) {
+            int cachedPageIndex = entry.first;
+            if (std::abs(cachedPageIndex - currentPageIndex) > 6) {
+                keysToRemove.push_back(cachedPageIndex);
+            }
+        }
+        
+        // Remove the collected keys and free their associated resources
+        for (int key : keysToRemove) {
+            FPDF_PAGE pageToClose = m_pageCache[key];
+            if (pageToClose) {
+                FPDF_ClosePage(pageToClose);
+            }
+            m_pageCache.erase(key);
+        }
+    }
+
     FPDF_PAGE HybridPdfiumUtil::getPage(FPDF_DOCUMENT m_pdfDoc, int pageIndex) {
         // Check if the page is already cached
         auto it =  m_pageCache.find(pageIndex);
@@ -14,11 +35,12 @@ namespace margelo::nitro::pdfium {
         if (page) {
             // Cache the page handle for later use
             m_pageCache[pageIndex] = page;
+            cleanupDistantPages(pageIndex);
         }
         return page;
     }
 
-    void HybridPdfiumUtil::clearPageCache() {
+void HybridPdfiumUtil::clearPageCache() {
         for (auto& entry : m_pageCache) {
             FPDF_ClosePage(entry.second);
         }
@@ -149,7 +171,6 @@ namespace margelo::nitro::pdfium {
     }
 
     std::shared_ptr<ArrayBuffer> HybridPdfiumUtil::getTileBgr565(double pageNumber, double row, double column, double displayWidth, double tileWidthD, double tileHeightD, double scale) {
-        
         
         int tileWidth = (int)tileWidthD;
         int tileHeight = (int)tileHeightD;
