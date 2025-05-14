@@ -28,11 +28,11 @@ PdfiumModule.openPdf(filePath);
 
 const { width: stageWidth, height: stageHeight } = Dimensions.get('screen');
 
-const {width, height} = Dimensions.get('window');
+const {width: windowWidth, height: windowHeight} = Dimensions.get('window');
 const TILE_SIZE = 256;
 
-const verticalTiles = Math.ceil(height / TILE_SIZE) * 2;
-const horizontalTiles = Math.ceil(width / TILE_SIZE);
+const verticalTiles = Math.ceil(windowHeight / TILE_SIZE) * 2;
+const horizontalTiles = Math.ceil(windowWidth / TILE_SIZE) + 1;
 const canvasHeight = verticalTiles * TILE_SIZE;
 const canvasWidth = horizontalTiles * TILE_SIZE;
 
@@ -219,6 +219,8 @@ const PdfViewer = () => {
       return null;
     }
     const canvas = offscreen.getCanvas();
+    canvas.clear(Skia.Color("transparent"));
+
     canvas.drawImage(img as SkImage, 0, 0);
     const offImg = offscreen.makeImageSnapshot();
     img?.dispose();
@@ -244,7 +246,7 @@ const PdfViewer = () => {
     "worklet";
     yOff += 2048 + TILE_SIZE; // This is always base coordinate as it the scale is handled by outside
     const canvasStart = yOff = -yOff;  
-    const scaledHeight = height / zoomFactor;
+    const scaledHeight = windowHeight / zoomFactor;
     const canvasEnd = yOff + scaledHeight;
     if ((row - 1) * TILE_SIZE > canvasEnd || (row + 1) * TILE_SIZE < canvasStart) {
       zoomFactor = 1;
