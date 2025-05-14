@@ -18,6 +18,7 @@ namespace margelo::nitro::pdfium {
       prototype.registerHybridMethod("openPdf", &HybridPdfiumUtilSpec::openPdf);
       prototype.registerHybridMethod("closePdf", &HybridPdfiumUtilSpec::closePdf);
       prototype.registerHybridMethod("getTile", &HybridPdfiumUtilSpec::getTile);
+      prototype.registerHybridMethod("getTileBgr565", &HybridPdfiumUtilSpec::getTileBgr565);
       prototype.registerHybridMethod("getPageCount", &HybridPdfiumUtilSpec::getPageCount);
       prototype.registerHybridMethod("getAllPageDimensions", &HybridPdfiumUtilSpec::getAllPageDimensions);
     });
