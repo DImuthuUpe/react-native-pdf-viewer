@@ -46,17 +46,35 @@ const pageDims = PdfiumModule.getAllPageDimensions();
 
                         // page1 , pageTile1, offset1, page2, pageTile2, offset2
 const tilePageCoverage: [number, number, number, number, number, number, number, number, number][] = [];
-
+const gapsInTile: [number, number][] = [];
 const parts : [number, number, number][] = [];
 
 // PageDims[i] = (width, height, aggregatedHeight)
 for (let tileStep = 0; tileStep * TILE_SIZE < pageDims[PAGE_COUNT - 1][2]; tileStep++) {
   const tileStartY = tileStep * TILE_SIZE;
   const tileEndY = tileStartY + TILE_SIZE;
+
+  gapsInTile.push([-1, -1]);
   pageDims.forEach((pageDim, pageNum) => {
     const pageHeight = pageDim[1];
-    const pageStartY = pageDim[2] - pageHeight;
-    const pageEndY = pageDim[2];
+    const pageStartY = pageDim[2] - pageHeight + PAGE_GAP * pageNum;
+    const pageEndY = pageDim[2] + PAGE_GAP * (pageNum + 1);
+
+     const gapStartY = pageEndY - PAGE_GAP;
+     const gapEndY = pageEndY;
+
+
+     if (tileStartY >= gapStartY && tileStartY <= gapEndY) {
+        gapsInTile[tileStep] = [0, Math.min(gapEndY - tileStartY, TILE_SIZE)];
+        console.log("Tile step " + tileStep + " Gaps in tile: " + gapsInTile[tileStep]);
+     } else if (tileStartY < gapStartY && tileEndY > gapStartY) {
+        gapsInTile[tileStep] = [gapStartY - tileStartY, gapEndY - tileStartY];
+        console.log("Tile step " + tileStep + " Gaps in tile: " + gapsInTile[tileStep]);
+     } else if (tileEndY >= gapStartY && tileEndY <= gapEndY) {
+        gapsInTile[tileStep] = [Math.max(gapStartY - tileStartY), TILE_SIZE];
+        console.log("Tile step " + tileStep + " Gaps in tile: " + gapsInTile[tileStep]);
+     }
+
 
     if (tileStartY >= pageStartY && tileEndY <= pageEndY) {
       // Tile is fully covered by page
@@ -182,6 +200,7 @@ const PdfViewer = () => {
   const scaleEndValue = useSharedValue<number>(1);
   const pageCoverageTiles = useSharedValue(tilePageCoverage);
   const pageDimension = useSharedValue(pageDims);
+  const gapsInTileUIThread = useSharedValue(gapsInTile);
 
   const width = stageWidth;
 
@@ -368,6 +387,18 @@ const PdfViewer = () => {
         //img?.dispose(); // Do not dispose image as it is used in the offscreen and cached
       }
       canvas.restore();
+    }
+
+    // Draw the gaps in the tile
+    const gap = gapsInTileUIThread.value[row];
+    if (gap[0] !== -1) {
+        canvas.save();  
+        const linePaint  = Skia.Paint();
+        linePaint.setColor(Skia.Color('red'));
+        linePaint.setStrokeWidth(PAGE_GAP);
+        canvas.drawLine(0, gap[0] * zoomFactor * 2 , TILE_SIZE * zoomFactor * 2, gap[0] * zoomFactor * 2, linePaint);
+        console.log("Gap Y: " + gap[0] + " Tile Y: " + row);
+        canvas.restore();
     }
 
     const img = offscreen.makeImageSnapshot();
