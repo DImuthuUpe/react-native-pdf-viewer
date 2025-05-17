@@ -1,7 +1,6 @@
 import PdfViewer from "./src/PdfViewer";
 
 const App = () => {
-
   return (
     <PdfViewer />
   );
