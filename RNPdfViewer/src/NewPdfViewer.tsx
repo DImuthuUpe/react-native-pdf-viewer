@@ -51,6 +51,7 @@ const NewPdfViewer = () => {
     const gcCycleCounter = useSharedValue<number>(0);
     const origin = useSharedValue({ x: 0, y: 0 });
     const pageDimsUI = useSharedValue(pageDims);
+    const pinchInProgress = useSharedValue<boolean>(false);
 
 
     const panGesture = Gesture.Pan().onChange((e) => {
@@ -71,11 +72,14 @@ const NewPdfViewer = () => {
     const pinchGesture = Gesture.Pinch()
     .onBegin((e) => {
         origin.value = { x: e.focalX, y: e.focalY };
+        pinchInProgress.value = true;
     })
     .onChange((e) => {
         scaleVal.value = e.scale;
+        pinchInProgress.value = true;
     }).onEnd((e) => {
         console.log("Pinch end");
+        pinchInProgress.value = false;
     });
     
     const getTileFromPdfium = (page: number, row: number, col: number, zoomFactor: number) => {
@@ -167,7 +171,7 @@ const NewPdfViewer = () => {
         global.tileOffscreens[row][col] = offscreen;
         return offscreen;
     }
-    const processTile = (row: number, col: number, scale: number, offsetX: number, offsetY: number) => {
+    const processTile = (row: number, col: number, scale: number, offsetX: number, offsetY: number, pinchInProgress: boolean) => {
         "worklet";
 
         const realOffsetY = (offsetY + row * TILE_SIZE);
@@ -178,11 +182,11 @@ const NewPdfViewer = () => {
         // [pageNum, pageTileY, translationY, pageTileX, translationX]
         const tilesAndOffsets: [number, number, number, number, number][] = [];
 
-        const effectiveTileSize = TILE_SIZE * scale;
+        const effectiveTileSize = TILE_SIZE * (pinchInProgress ? scale : 1);
         pageDims.forEach((pageDim, pageNum) => {
             const pageWidth = pageDim[0];
-            const pageHeight = pageDim[1] * scale;
-            const aggregatedHeight = pageDim[2] * scale; // till the end of the page
+            const pageHeight = pageDim[1] * (pinchInProgress ? scale : 1);
+            const aggregatedHeight = pageDim[2] * (pinchInProgress ? scale : 1); // till the end of the page
 
             
             if ((realOffsetY + effectiveTileSize <= aggregatedHeight) && 
@@ -208,7 +212,9 @@ const NewPdfViewer = () => {
                 tilesAndOffsets.push([pageNum, bottomTileIdY, -translationY2 * 2, leftTileIdX, leftTranslationX * 2]);
                 tilesAndOffsets.push([pageNum, bottomTileIdY, -translationY2 * 2, rightTileIdX, -rightTranslationX * 2]);
 
-            } else if ( realOffsetY < aggregatedHeight && realOffsetY + effectiveTileSize > aggregatedHeight) {
+            } 
+            
+            /*else if ( realOffsetY < aggregatedHeight && realOffsetY + effectiveTileSize > aggregatedHeight) {
 
                 const leftTileIdX = Math.floor(realOffsetX / effectiveTileSize);
                 const leftTranslationX = realOffsetX - leftTileIdX * effectiveTileSize;
@@ -236,7 +242,7 @@ const NewPdfViewer = () => {
                 const translationY2 = effectiveTileSize - translationY;
                 tilesAndOffsets.push([pageNum, bottomTileIdY, -translationY2 * 2, leftTileIdX, leftTranslationX * 2]);
                 tilesAndOffsets.push([pageNum, bottomTileIdY, -translationY2 * 2, rightTileIdX, -rightTranslationX * 2]);
-            }
+            }*/
             
         });
     
@@ -257,7 +263,7 @@ const NewPdfViewer = () => {
                continue;
             }
 
-            const pageTile = getTileFromPdfium(pageNum, pageTileY, pageTileX, 2);
+            const pageTile = getTileFromPdfium(pageNum, pageTileY, pageTileX, 2 * (pinchInProgress ? 1 : scale));
 
             if (pageTile == null) {
                 return null;
@@ -265,7 +271,7 @@ const NewPdfViewer = () => {
             canvas.save();
 
             canvas.translate(-translationX, -translationY);
-            canvas.scale(scale, scale);
+            canvas.scale((pinchInProgress ? scale : 1), (pinchInProgress ? scale : 1));
 
             canvas.drawImage(pageTile as SkImage, 0, 0);
             canvas.restore();
@@ -308,7 +314,7 @@ const NewPdfViewer = () => {
                     <Image
                     x={useDerivedValue(() => horizontalTileId * TILE_SIZE)}
                     y={useDerivedValue(() =>  verticalTileId * TILE_SIZE)}
-                    image={useDerivedValue(() => processTile(verticalTileId, horizontalTileId, scaleVal.value, -offsetX.value, -offsetY.value))}
+                    image={useDerivedValue(() => processTile(verticalTileId, horizontalTileId, 2, -offsetX.value, -offsetY.value, false))}
                     width={useDerivedValue(() => TILE_SIZE )}
                     height={useDerivedValue(() => TILE_SIZE)}
                     />
