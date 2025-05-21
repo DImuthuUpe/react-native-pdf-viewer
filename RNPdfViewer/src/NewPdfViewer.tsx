@@ -6,7 +6,7 @@ import Animated, { createWorkletRuntime, useDerivedValue, useSharedValue, withDe
 import RNFS from 'react-native-fs';
 import { NitroModules } from "react-native-nitro-modules";
 import { clearOutofScaleAllTiles, cleanUpOutofScalePageTiles, getPageTileFromCache, setPageTileInCache, getGridTileFromCache, setGridTileInCache, clearGridTileCache, printGridTileCacheEntries, printPageTileCacheEntries, clearOutOfScaleTilesForOffset } from "./TileCache";
-const fileName = 'sample.pdf';//tilevalidation.pdf 'uneven.pdf';//'A17_FlightPlan.pdf';//'sample.pdf'; // Relative to assets
+const fileName = 'A17_FlightPlan.pdf';//tilevalidation.pdf 'uneven.pdf';//'A17_FlightPlan.pdf';//'sample.pdf'; // Relative to assets
 let filePath = '';
 
 if (Platform.OS === 'ios') {
@@ -189,17 +189,17 @@ const NewPdfViewer = () => {
             const aggregatedHeight = pageDim[2] * (pinchInProgress ? scale : 1); // till the end of the page
 
             
-            if ((realOffsetY + effectiveTileSize <= aggregatedHeight) && 
-                (realOffsetY >= aggregatedHeight - pageHeight)) {
+            if ((realOffsetY + effectiveTileSize <= aggregatedHeight * (pinchInProgress ? 1 : scale)) && 
+                (realOffsetY >= (aggregatedHeight - pageHeight) * (pinchInProgress ? 1 : scale) )) {
                 
                 
-                const leftTileIdX = Math.floor(realOffsetX / effectiveTileSize);
+                const leftTileIdX = Math.floor(realOffsetX  / effectiveTileSize);
                 const leftTranslationX = realOffsetX - leftTileIdX * effectiveTileSize;
                 const rightTileIdX = leftTileIdX + 1;
                 const rightTranslationX = effectiveTileSize - leftTranslationX;
 
 
-                const localTileOffsetY = realOffsetY - (aggregatedHeight - pageHeight);
+                const localTileOffsetY = realOffsetY - (aggregatedHeight - pageHeight) * (pinchInProgress ? 1 : scale);
                 const topTileIdY = Math.floor(localTileOffsetY / effectiveTileSize);
                 const translationY = localTileOffsetY - topTileIdY * effectiveTileSize;
 
@@ -212,9 +212,8 @@ const NewPdfViewer = () => {
                 tilesAndOffsets.push([pageNum, bottomTileIdY, -translationY2 * 2, leftTileIdX, leftTranslationX * 2]);
                 tilesAndOffsets.push([pageNum, bottomTileIdY, -translationY2 * 2, rightTileIdX, -rightTranslationX * 2]);
 
-            } 
-            
-            /*else if ( realOffsetY < aggregatedHeight && realOffsetY + effectiveTileSize > aggregatedHeight) {
+            } else if ( realOffsetY < aggregatedHeight * (pinchInProgress ? 1 : scale)
+                 && realOffsetY + effectiveTileSize > aggregatedHeight * (pinchInProgress ? 1 : scale)) {
 
                 const leftTileIdX = Math.floor(realOffsetX / effectiveTileSize);
                 const leftTranslationX = realOffsetX - leftTileIdX * effectiveTileSize;
@@ -222,27 +221,28 @@ const NewPdfViewer = () => {
                 const rightTranslationX = effectiveTileSize - leftTranslationX;
 
                 // Tile is partially covered by page bottom part
-                const localTileOffsetY = realOffsetY - (aggregatedHeight - pageHeight);
+                const localTileOffsetY = realOffsetY - (aggregatedHeight - pageHeight) * (pinchInProgress ? 1 : scale);
                 const topTileIdY = Math.floor(localTileOffsetY / effectiveTileSize);
                 const translationY = localTileOffsetY - topTileIdY * effectiveTileSize;
                 tilesAndOffsets.push([pageNum, topTileIdY, translationY * 2, leftTileIdX, leftTranslationX * 2]);
                 tilesAndOffsets.push([pageNum, topTileIdY, translationY * 2, rightTileIdX, -rightTranslationX * 2]);
 
-            } else if (realOffsetY + effectiveTileSize >= aggregatedHeight - pageHeight && realOffsetY < aggregatedHeight - pageHeight) {
+            } else if (realOffsetY + effectiveTileSize >= (aggregatedHeight - pageHeight) * (pinchInProgress ? 1 : scale) && 
+                        realOffsetY < (aggregatedHeight - pageHeight) * (pinchInProgress ? 1 : scale)) {
                 
                 const leftTileIdX = Math.floor(realOffsetX / effectiveTileSize);
                 const leftTranslationX = realOffsetX - leftTileIdX * effectiveTileSize;
                 const rightTileIdX = leftTileIdX + 1;
                 const rightTranslationX = effectiveTileSize - leftTranslationX;
                 
-                const localTileOffsetY = realOffsetY - (aggregatedHeight - pageHeight);
+                const localTileOffsetY = realOffsetY - (aggregatedHeight - pageHeight) * (pinchInProgress ? 1 : scale);
                 const topTileIdY = Math.floor(localTileOffsetY / effectiveTileSize);
                 const translationY = localTileOffsetY - topTileIdY * effectiveTileSize;
                 const bottomTileIdY = topTileIdY + 1;
                 const translationY2 = effectiveTileSize - translationY;
                 tilesAndOffsets.push([pageNum, bottomTileIdY, -translationY2 * 2, leftTileIdX, leftTranslationX * 2]);
                 tilesAndOffsets.push([pageNum, bottomTileIdY, -translationY2 * 2, rightTileIdX, -rightTranslationX * 2]);
-            }*/
+            }
             
         });
     
@@ -259,7 +259,7 @@ const NewPdfViewer = () => {
             const pageTileX = tilesAndOffsets[i][3];
             const translationX = tilesAndOffsets[i][4];
 
-            if (pageTileX < 0 || pageTileX > pageDimsUI.value[pageNum][0] / TILE_SIZE) {
+            if (pageTileX < 0 || pageTileX > pageDimsUI.value[pageNum][0] * (pinchInProgress ? 1 : scale) / TILE_SIZE) {
                continue;
             }
 
@@ -314,7 +314,7 @@ const NewPdfViewer = () => {
                     <Image
                     x={useDerivedValue(() => horizontalTileId * TILE_SIZE)}
                     y={useDerivedValue(() =>  verticalTileId * TILE_SIZE)}
-                    image={useDerivedValue(() => processTile(verticalTileId, horizontalTileId, 2, -offsetX.value, -offsetY.value, false))}
+                    image={useDerivedValue(() => processTile(verticalTileId, horizontalTileId, scaleVal.value, -offsetX.value, -offsetY.value, pinchInProgress.value))}
                     width={useDerivedValue(() => TILE_SIZE )}
                     height={useDerivedValue(() => TILE_SIZE)}
                     />
