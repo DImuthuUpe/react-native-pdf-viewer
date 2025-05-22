@@ -40,20 +40,41 @@ const PAGE_GAP = 10;
 const PAGE_COUNT = PdfiumModule.getPageCount();
 const PIXEL_ZOOM = 2;
 const MAX_SCALE = 2.9;
+const USE_BGR565 = false;
 
 const pageDims = PdfiumModule.getAllPageDimensions();
 
                         // page1 , pageTile1, offset1, page2, pageTile2, offset2
-const tilePageCoverage: [number, number, number, number, number, number][] = [];
-
+const tilePageCoverage: [number, number, number, number, number, number, number, number, number][] = [];
+const gapsInTile: [number, number][] = [];
 const parts : [number, number, number][] = [];
-for (let tileStep = 0; tileStep * TILE_SIZE < pageDims[PAGE_COUNT -1][2]; tileStep++) {
+
+// PageDims[i] = (width, height, aggregatedHeight)
+for (let tileStep = 0; tileStep * TILE_SIZE < pageDims[PAGE_COUNT - 1][2]; tileStep++) {
   const tileStartY = tileStep * TILE_SIZE;
   const tileEndY = tileStartY + TILE_SIZE;
+
+  gapsInTile.push([-1, -1]);
   pageDims.forEach((pageDim, pageNum) => {
     const pageHeight = pageDim[1];
-    const pageStartY = pageDim[2] - pageHeight;
-    const pageEndY = pageStartY + pageHeight;
+    const pageStartY = pageDim[2] - pageHeight + PAGE_GAP * pageNum;
+    const pageEndY = pageDim[2] + PAGE_GAP * (pageNum + 1);
+
+     const gapStartY = pageEndY - PAGE_GAP;
+     const gapEndY = pageEndY;
+
+
+     if (tileStartY >= gapStartY && tileStartY <= gapEndY) {
+        gapsInTile[tileStep] = [0, Math.min(gapEndY - tileStartY, TILE_SIZE)];
+        console.log("Tile step " + tileStep + " Gaps in tile: " + gapsInTile[tileStep]);
+     } else if (tileStartY < gapStartY && tileEndY > gapStartY) {
+        gapsInTile[tileStep] = [gapStartY - tileStartY, gapEndY - tileStartY];
+        console.log("Tile step " + tileStep + " Gaps in tile: " + gapsInTile[tileStep]);
+     } else if (tileEndY >= gapStartY && tileEndY <= gapEndY) {
+        gapsInTile[tileStep] = [Math.max(gapStartY - tileStartY), TILE_SIZE];
+        console.log("Tile step " + tileStep + " Gaps in tile: " + gapsInTile[tileStep]);
+     }
+
 
     if (tileStartY >= pageStartY && tileEndY <= pageEndY) {
       // Tile is fully covered by page
@@ -61,7 +82,7 @@ for (let tileStep = 0; tileStep * TILE_SIZE < pageDims[PAGE_COUNT -1][2]; tileSt
       if (tileOffset % TILE_SIZE == 0) {
         // Tile is aligned with page tile
         const pageTile = Math.floor(tileOffset / TILE_SIZE);
-        const translation = 0
+        const translation = 0;
         parts.push([pageNum, pageTile, translation]);
       } else {
         // Tile is covered by 2 page tiles
@@ -76,25 +97,85 @@ for (let tileStep = 0; tileStep * TILE_SIZE < pageDims[PAGE_COUNT -1][2]; tileSt
       }
     } else if (tileStartY < pageStartY && tileEndY > pageStartY) {
       // Tile is partially covered by page top part
+
+      /*
+        |================| Top Page Tile Boundary
+        |                |
+        |                |
+        |================| Top Page End Boundary with Page Gap
+        |================| Top Page Start of fist Tile
+        |----------------| Canvas Tile Boundary
+        |                |
+        |                |
+        |================| Second Page End of fist Tile
+        |      ** This   |
+        |                |
+        |----------------|
+      */
       const pageTile = 0;
       const translation = tileStartY - pageStartY;
       parts.push([pageNum, pageTile, translation]);
     } else if (tileStartY < pageEndY && tileEndY > pageEndY) {
       // Tile is partially covered by page bottom part
-      const pageTile = Math.floor((tileStartY - pageStartY) / TILE_SIZE);
-      const translation = tileStartY - (pageStartY + pageTile * TILE_SIZE);
-      parts.push([pageNum, pageTile, translation]);
+      /*
+        |================| Top Page Tile Boundary
+        |    ** This     |
+        |                |
+        |================| Top Page End Boundary with Page Gap
+        |================| Top Page Start of fist Tile
+        |----------------| Canvas Tile Boundary
+        |                |
+        |                |
+        |================| Second Page End of fist Tile
+        |                |
+        |                |
+        |----------------|
+      */
+        const pageTile = Math.floor((tileStartY - pageStartY) / TILE_SIZE);
+        const pageTileStartY = pageStartY + pageTile * TILE_SIZE;
+        const pageTileEndY = pageTileStartY  + TILE_SIZE;
+
+        const translation = tileStartY - pageTileStartY;
+        parts.push([pageNum, pageTile, translation]);
+
+        if ((pageStartY + pageTile * TILE_SIZE) < pageEndY) {
+
+            // console.log("Page Start Y: " + pageStartY + " Tile StartY: " + tileStartY + " Page EndY: " + pageEndY + " Page Tile StartY " + pageTileStartY + " Page Tile EndY: " + pageTileEndY);
+            // Page Start Y: 792 Page EndY: 1584 Tile StartY: 1536 Page Tile EndY: 1304 
+            // If the last piece of page is also within the tile
+            /*
+            |----------------| tileStartY
+            |================| Top Page Tile Boundary (pageTileEndY)
+            |   ** This      | Remaining part of page
+            |                |
+            |================| Top Page End Boundary with Page Gap
+            |================| Top Page Start of fist Tile
+            |----------------| Canvas Tile Boundary
+            |                |
+            |                |
+            |================| Second Page End of fist Tile
+            |                |
+            |                |
+            |----------------|
+            */
+            const pageTile2 = pageTile + 1;
+            const translation2 = pageTileEndY - tileStartY;
+            parts.push([pageNum, pageTile2, -translation2]);
+        }
     }
   });
 
-  if (parts.length == 2) {
-    tilePageCoverage.push([parts[0][0], parts[0][1], parts[0][2], parts[1][0], parts[1][1], parts[1][2]]);
+  if (parts.length === 3) { // 2 parts from top page and 1 from bottom page
+    tilePageCoverage.push([parts[0][0], parts[0][1], parts[0][2], parts[1][0], parts[1][1], parts[1][2], parts[2][0], parts[2][1], parts[2][2]]);
     parts.length = 0;
-  } else if (parts.length == 1) {
-    tilePageCoverage.push([parts[0][0], parts[0][1], parts[0][2], -1, -1, -1]);
+  } else if (parts.length === 2) {
+    tilePageCoverage.push([parts[0][0], parts[0][1], parts[0][2], parts[1][0], parts[1][1], parts[1][2], -1, -1, -1]);
+    parts.length = 0;
+  } else if (parts.length === 1) {
+    tilePageCoverage.push([parts[0][0], parts[0][1], parts[0][2], -1, -1, -1, -1, -1, -1]);
     parts.length = 0;
   } else {
-    tilePageCoverage.push([-1, -1, -1, -1, -1, -1]);
+    tilePageCoverage.push([-1, -1, -1, -1, -1, -1, -1, -1, -1]);
   }
 
 }
@@ -119,6 +200,7 @@ const PdfViewer = () => {
   const scaleEndValue = useSharedValue<number>(1);
   const pageCoverageTiles = useSharedValue(tilePageCoverage);
   const pageDimension = useSharedValue(pageDims);
+  const gapsInTileUIThread = useSharedValue(gapsInTile);
 
   const width = stageWidth;
 
@@ -174,20 +256,28 @@ const PdfViewer = () => {
     const tileEndX = (col + 1) * TILE_SIZE;
     const tileWidth = pageWidth > tileEndX?
       TILE_SIZE * zoomFactor: tileStartX > pageWidth?
-      0: Math.ceil(pageWidth - tileStartX) * zoomFactor;
+      0 : Math.ceil(pageWidth - tileStartX) * zoomFactor;
 
-    if (tileWidth == 0) {
+    if (tileWidth === 0) {
       return null;
     }
     const tileHeight = TILE_SIZE * zoomFactor;
-    const tileBuf = boxedPdfium.unbox().getTileBgr565(
+
+    const tileBuf = USE_BGR565 ? boxedPdfium.unbox().getTileBgr565(
       page,
       -row  * TILE_SIZE * zoomFactor,
       -col * TILE_SIZE * zoomFactor,
       width,
       tileWidth,
       tileHeight,
-      zoomFactor);
+      zoomFactor) : boxedPdfium.unbox().getTile(
+        page,
+        -row  * TILE_SIZE * zoomFactor,
+        -col * TILE_SIZE * zoomFactor,
+        width,
+        tileWidth,
+        tileHeight,
+        zoomFactor);
 
     const data = Skia.Data.fromBytes(new Uint8Array(tileBuf));
     const img = Skia.Image.MakeImage(
@@ -195,10 +285,10 @@ const PdfViewer = () => {
         width: tileWidth,
         height: tileHeight,
         alphaType: AlphaType.Opaque,
-        colorType: ColorType.RGB_565,
+        colorType: USE_BGR565 ? ColorType.RGB_565 : ColorType.RGBA_8888,
       },
       data,
-      tileWidth * 2
+      tileWidth * (USE_BGR565 ? 2 : 4)
     );
 
     if (global.coffscreens == null) {
@@ -219,7 +309,7 @@ const PdfViewer = () => {
       return null;
     }
     const canvas = offscreen.getCanvas();
-    canvas.clear(Skia.Color("transparent"));
+    canvas.clear(Skia.Color('black'));
 
     canvas.drawImage(img as SkImage, 0, 0);
     const offImg = offscreen.makeImageSnapshot();
@@ -271,20 +361,22 @@ const PdfViewer = () => {
     const offscreen = global.offscreens[zoomFactor];
 
     const canvas:SkCanvas = offscreen.getCanvas();
-    const resetColor = Skia.Color("transparent");
+    const resetColor = Skia.Color('blue');
     canvas.clear(resetColor);
     //canvas.clear(0xFFFFFFFF);
 
+    // tilePages = page1 , pageTile1, offset1, page2, pageTile2, offset2, page3, pageTile3, offset3
+    // 1,2,232,2,0,-48, -1,-1,-1
     const tilePages = pageCoverageTiles.value[row];
-    if (tilePages== null) {
+    if (tilePages == null) {
       return null;
     }
 
-    for (let partIdx = 0; partIdx <= 1; partIdx++) {
+    for (let partIdx = 0; partIdx <= 2; partIdx++) { // Go through 3 parts of page tile coverage for each tile
       const pageNum = tilePages[0 + partIdx * 3];
       const pageTile = tilePages[1 + partIdx * 3];
       const translation = tilePages[2 + partIdx * 3];
-      if (pageNum == -1) {
+      if (pageNum === -1) {
         continue;
       }
       canvas.save();
@@ -292,9 +384,21 @@ const PdfViewer = () => {
       const img = getOffScreenTile(pageNum, pageTile, col, zoomFactor);
       if (img != null) {
         canvas.drawImage(img as SkImage, 0,0);
-        //img?.dispose();
+        //img?.dispose(); // Do not dispose image as it is used in the offscreen and cached
       }
       canvas.restore();
+    }
+
+    // Draw the gaps in the tile
+    const gap = gapsInTileUIThread.value[row];
+    if (gap[0] !== -1) {
+        canvas.save();  
+        const linePaint  = Skia.Paint();
+        linePaint.setColor(Skia.Color('red'));
+        linePaint.setStrokeWidth(PAGE_GAP);
+        canvas.drawLine(0, gap[0] * zoomFactor * 2 , TILE_SIZE * zoomFactor * 2, gap[0] * zoomFactor * 2, linePaint);
+        console.log("Gap Y: " + gap[0] + " Tile Y: " + row);
+        canvas.restore();
     }
 
     const img = offscreen.makeImageSnapshot();
