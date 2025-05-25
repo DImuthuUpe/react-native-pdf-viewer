@@ -6,7 +6,7 @@ import Animated, { useDerivedValue, useSharedValue, withDecay } from "react-nati
 import RNFS from 'react-native-fs';
 import { NitroModules } from "react-native-nitro-modules";
 import { getPageTileFromCache, setPageTileInCache } from "./TileCache";
-const fileName = 'sample.pdf';//tilevalidation.pdf 'uneven.pdf';//'A17_FlightPlan.pdf';//'sample.pdf'; // Relative to assets
+const fileName = 'A17_FlightPlan.pdf';//tilevalidation.pdf 'uneven.pdf';//'A17_FlightPlan.pdf';//'sample.pdf'; // Relative to assets
 let filePath = '';
 
 if (Platform.OS === 'ios') {
@@ -39,7 +39,8 @@ const canvasWidth = horizontalTiles * TILE_SIZE;
 const PAGE_GAP = 10;
 const PAGE_COUNT = PdfiumModule.getPageCount();
 const PIXEL_ZOOM = 2;
-const MAX_SCALE = 2.9;
+const MAX_SCALE = 3.5;
+const MIN_SCALE = 0.6;
 const USE_BGR565 = false;
 
 const pageDims = PdfiumModule.getAllPageDimensions();
@@ -58,7 +59,6 @@ const NewPdfViewer = () => {
 
         offsetX.value += e.changeX;
         offsetY.value += e.changeY;
-    
     }).onEnd((e) => {
         offsetX.value = withDecay({
           velocity: e.velocityX
@@ -69,16 +69,28 @@ const NewPdfViewer = () => {
         });
     });
 
+    const prevScale = useSharedValue<number>(1);
+    const prevOffsetX = useSharedValue<number>(0);
+    const prevOffsetY = useSharedValue<number>(0);
+
     const pinchGesture = Gesture.Pinch()
     .onBegin((e) => {
         origin.value = { x: e.focalX, y: e.focalY };
         pinchInProgress.value = true;
+        prevScale.value = scaleVal.value;
+        prevOffsetX.value = offsetX.value;
+        prevOffsetY.value = offsetY.value;
     })
     .onChange((e) => {
-        scaleVal.value = e.scale;
+        scaleVal.value = Math.max(MIN_SCALE, Math.min(MAX_SCALE, prevScale.value * e.scale));
+        if (scaleVal.value === MIN_SCALE || scaleVal.value === MAX_SCALE) {
+            return;
+        }
+        offsetY.value = prevOffsetY.value * e.scale - origin.value.y * (e.scale - 1);
+        offsetX.value = prevOffsetX.value * e.scale - origin.value.x * (e.scale - 1);
         pinchInProgress.value = true;
+
     }).onEnd((e) => {
-        console.log("Pinch end");
         pinchInProgress.value = false;
         global.gc();
     });
@@ -91,7 +103,7 @@ const NewPdfViewer = () => {
             return pageTileCache;
         }
 
-        console.log("Get tile from pdfium page: " + page + " row: " + row + " col: " + col + " zoomFactor: " + zoomFactor);
+        //console.log("Get tile from pdfium page: " + page + " row: " + row + " col: " + col + " zoomFactor: " + zoomFactor);
         const pageWidth = pageDimsUI.value[page][0] * 2;
         const pageHeight = pageDimsUI.value[page][1];
     
@@ -184,18 +196,17 @@ const NewPdfViewer = () => {
 
         const effectiveTileSize = TILE_SIZE * (pinchInProgress ? scale : 1);
         pageDims.forEach((pageDim, pageNum) => {
-            const pageWidth = pageDim[0]  * (pinchInProgress ? scale : 1);
+            const pageWidth = pageDim[0]  * scale;
             const pageHeight = pageDim[1] * (pinchInProgress ? scale : 1);
             const aggregatedHeight = pageDim[2] * (pinchInProgress ? scale : 1); // till the end of the page
 
-            if (row !== 0 || col !== 1) {
+            if (row > 2 || col !== 1) {
                 //return;
-
             }
         
             const verticalTileData: [number, number][] = [];
             
-            if ((realOffsetX + effectiveTileSize <= pageWidth * (pinchInProgress ? 1 : scale)) && 
+            if ((realOffsetX + effectiveTileSize <= pageWidth) && 
                 realOffsetX >= 0 ) {
                     const ledtTileIdX = Math.floor(realOffsetX / effectiveTileSize);
                     const translationX = realOffsetX - ledtTileIdX * effectiveTileSize;
@@ -207,15 +218,15 @@ const NewPdfViewer = () => {
                     verticalTileData.push([rightTileIdX, -translationX2]);
             } 
 
-            if ( realOffsetX < pageWidth * (pinchInProgress ? 1 : scale)
-                && realOffsetX + effectiveTileSize > pageWidth * (pinchInProgress ? 1 : scale)) {
+            if ( realOffsetX < pageWidth
+                && realOffsetX + effectiveTileSize > pageWidth) {
 
                const leftTileIdX = Math.floor(realOffsetX / effectiveTileSize);
                const translationX = realOffsetX - leftTileIdX * effectiveTileSize;
 
                verticalTileData.push([leftTileIdX, translationX]);
 
-               if ((TILE_SIZE - translationX) + realOffsetX < pageWidth * (pinchInProgress ? 1 : scale)) { // Last partial tile of the page end
+               if ((TILE_SIZE - translationX) + realOffsetX < pageWidth) { // Last partial tile of the page end
                    verticalTileData.push([leftTileIdX + 1, -(effectiveTileSize - translationX)]);
                }
             }
@@ -256,16 +267,11 @@ const NewPdfViewer = () => {
                 }
                 
             
-                //console.log("Real offset Y: " + realOffsetY + " pageHeight: " + pageHeight + " aggregatedHeight: " + aggregatedHeight);
-                //console.log("Local tile offset Y: " + localTileOffsetY + " topTileIdY: " + topTileIdY + " translationY: " + translationY);
-                //console.log("Effective tile size: " + effectiveTileSize + " bottomTileIdY: " + bottomTileIdY + " translationY2: " + translationY2);
-
                 if (translationY + translationY2 < TILE_SIZE) { // This is for Zoom < 0 and zooming state. This makes sure that 3 rd tile is added to bottom
                     for (let i = 0; i < verticalTileData.length; i++) {
                         tilesAndOffsets.push([pageNum, bottomTileIdY + 1, -(effectiveTileSize + translationY2) * 2, verticalTileData[i][0], verticalTileData[i][1] * 2]);
                     }
                 }
-                console.log("Mid page")
             }
             
             if ( realOffsetY < aggregatedHeight * (pinchInProgress ? 1 : scale)
@@ -280,23 +286,37 @@ const NewPdfViewer = () => {
                 for (let i = 0; i < verticalTileData.length; i++) {
                     tilesAndOffsets.push([pageNum, topTileIdY, translationY * 2, verticalTileData[i][0], verticalTileData[i][1] * 2]);
                 }
-                
-                console.log("Page bottom part")
+
+                for (let i = 0; i < verticalTileData.length; i++) {
+                    tilesAndOffsets.push([pageNum, topTileIdY + 1, -(effectiveTileSize - translationY) * 2 , verticalTileData[i][0], verticalTileData[i][1] * 2]);
+                }
+
                 if ((TILE_SIZE - translationY) + realOffsetY < aggregatedHeight * (pinchInProgress ? 1 : scale)) { // Last partial tile of the page end
                     for (let i = 0; i < verticalTileData.length; i++) {
                         tilesAndOffsets.push([pageNum, topTileIdY + 1, -(effectiveTileSize - translationY)  * 2,  verticalTileData[i][0], verticalTileData[i][1] * 2]);
-                    }                    
-                    console.log("Page bottom part last tile")
-
+                    }
                 }
-                
             }
-            
+
+            if (realOffsetY + TILE_SIZE >= (aggregatedHeight - pageHeight) * (pinchInProgress ? 1 : scale) && 
+            realOffsetY + effectiveTileSize < (aggregatedHeight - pageHeight) * (pinchInProgress ? 1 : scale)) {
+
+                // This is an edge case covering to show the top of page tile when ZOOM < 1. Else, the top of tile 
+                // is not shown until the tile scroll up to TILE_SIZE * scale
+                const localTileOffsetY = realOffsetY - (aggregatedHeight - pageHeight) * (pinchInProgress ? 1 : scale);
+                const topTileIdY = Math.ceil(localTileOffsetY / effectiveTileSize);
+                const translationY = localTileOffsetY - topTileIdY * effectiveTileSize;
+                const bottomTileIdY = topTileIdY + 1;
+                const translationY2 = effectiveTileSize - translationY;
+
+                for (let i = 0; i < verticalTileData.length; i++) {
+                    tilesAndOffsets.push([pageNum, bottomTileIdY, -translationY2 * 2, verticalTileData[i][0], verticalTileData[i][1]  * 2]);
+                }
+            }
+
             if (realOffsetY + effectiveTileSize >= (aggregatedHeight - pageHeight) * (pinchInProgress ? 1 : scale) && 
                         realOffsetY < (aggregatedHeight - pageHeight) * (pinchInProgress ? 1 : scale)) {
-                
-        
-                
+
                 const localTileOffsetY = realOffsetY - (aggregatedHeight - pageHeight) * (pinchInProgress ? 1 : scale);
                 const topTileIdY = Math.floor(localTileOffsetY / effectiveTileSize);
                 const translationY = localTileOffsetY - topTileIdY * effectiveTileSize;
@@ -329,7 +349,6 @@ const NewPdfViewer = () => {
             const pageTileX = tilesAndOffsets[i][3];
             const translationX = tilesAndOffsets[i][4];
 
-            console.log("PageNum: " + pageNum + " pageTileY: " + pageTileY + " translationY: " + translationY + " pageTileX: " + pageTileX + " translationX: " + translationX);
             if (pageTileX < 0 || pageTileX > pageDimsUI.value[pageNum][0] * (pinchInProgress ? 1 : scale) / TILE_SIZE) {
                //continue;
             }
@@ -398,7 +417,7 @@ const NewPdfViewer = () => {
               })}
               </Group>
             </Canvas>
-            <GestureDetector gesture={Gesture.Race(pinchGesture, panGesture)}>
+            <GestureDetector gesture={Gesture.Race(panGesture, pinchGesture)}>
               <Animated.View style={[StyleSheet.absoluteFill]} />
             </GestureDetector>
           </View>

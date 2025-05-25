@@ -12,7 +12,9 @@
 		2149EF818B4694188961E186 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
+		E44B85492DE21A680071E4C9 /* borderless.pdf in Resources */ = {isa = PBXBuildFile; fileRef = E44B85482DE21A680071E4C9 /* borderless.pdf */; };
 		E452FB072D4E25F900CFAB4B /* sample.pdf in Resources */ = {isa = PBXBuildFile; fileRef = E452FB062D4E25F900CFAB4B /* sample.pdf */; };
+		E48B1B4D2DDBB635008E2C1E /* tilevalidation.pdf in Resources */ = {isa = PBXBuildFile; fileRef = E48B1B4C2DDBB635008E2C1E /* tilevalidation.pdf */; };
 		E4DAA81A2D6CABE100943979 /* A17_FlightPlan.pdf in Resources */ = {isa = PBXBuildFile; fileRef = E4DAA8192D6CABE000943979 /* A17_FlightPlan.pdf */; };
 		E4F8807A2D72AD3900669573 /* uneven.pdf in Resources */ = {isa = PBXBuildFile; fileRef = E4F880792D72AD3900669573 /* uneven.pdf */; };
 /* End PBXBuildFile section */
@@ -21,13 +23,15 @@
 		13B07F961A680F5B00A75B9A /* RNPdfViewer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RNPdfViewer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = RNPdfViewer/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = RNPdfViewer/Info.plist; sourceTree = "<group>"; };
-		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = RNPdfViewer/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = RNPdfViewer/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		3B4392A12AC88292D35C810B /* Pods-RNPdfViewer.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RNPdfViewer.debug.xcconfig"; path = "Target Support Files/Pods-RNPdfViewer/Pods-RNPdfViewer.debug.xcconfig"; sourceTree = "<group>"; };
 		5709B34CF0A7D63546082F79 /* Pods-RNPdfViewer.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RNPdfViewer.release.xcconfig"; path = "Target Support Files/Pods-RNPdfViewer/Pods-RNPdfViewer.release.xcconfig"; sourceTree = "<group>"; };
 		5DCACB8F33CDC322A6C60F78 /* libPods-RNPdfViewer.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-RNPdfViewer.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = RNPdfViewer/AppDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = RNPdfViewer/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		E44B85482DE21A680071E4C9 /* borderless.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; name = borderless.pdf; path = ../examples/borderless.pdf; sourceTree = SOURCE_ROOT; };
 		E452FB062D4E25F900CFAB4B /* sample.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = sample.pdf; sourceTree = "<group>"; };
+		E48B1B4C2DDBB635008E2C1E /* tilevalidation.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; name = tilevalidation.pdf; path = ../examples/tilevalidation.pdf; sourceTree = SOURCE_ROOT; };
 		E4DAA8192D6CABE000943979 /* A17_FlightPlan.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = A17_FlightPlan.pdf; sourceTree = "<group>"; };
 		E4F880792D72AD3900669573 /* uneven.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; name = uneven.pdf; path = ../examples/uneven.pdf; sourceTree = SOURCE_ROOT; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
@@ -69,6 +73,7 @@
 		832341AE1AAA6A7D00B99B32 /* Libraries */ = {
 			isa = PBXGroup;
 			children = (
+				13B07FAE1A68108700A75B9A /* RNPdfViewer */,
 			);
 			name = Libraries;
 			sourceTree = "<group>";
@@ -76,10 +81,11 @@
 		83CBB9F61A601CBA00E9B192 = {
 			isa = PBXGroup;
 			children = (
+				E44B85482DE21A680071E4C9 /* borderless.pdf */,
+				E48B1B4C2DDBB635008E2C1E /* tilevalidation.pdf */,
 				E4DAA8192D6CABE000943979 /* A17_FlightPlan.pdf */,
 				E452FB062D4E25F900CFAB4B /* sample.pdf */,
 				E4F880792D72AD3900669573 /* uneven.pdf */,
-				13B07FAE1A68108700A75B9A /* RNPdfViewer */,
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
@@ -168,7 +174,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				E452FB072D4E25F900CFAB4B /* sample.pdf in Resources */,
+				E48B1B4D2DDBB635008E2C1E /* tilevalidation.pdf in Resources */,
 				E4F8807A2D72AD3900669573 /* uneven.pdf in Resources */,
+				E44B85492DE21A680071E4C9 /* borderless.pdf in Resources */,
 				81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */,
 				E4DAA81A2D6CABE100943979 /* A17_FlightPlan.pdf in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
@@ -396,10 +404,7 @@
 					"-DFOLLY_CFG_NO_COROUTINES=1",
 					"-DFOLLY_HAVE_CLOCK_GETTIME=1",
 				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					" ",
-				);
+				OTHER_LDFLAGS = "$(inherited)  ";
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) DEBUG";
@@ -468,10 +473,7 @@
 					"-DFOLLY_CFG_NO_COROUTINES=1",
 					"-DFOLLY_HAVE_CLOCK_GETTIME=1",
 				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					" ",
-				);
+				OTHER_LDFLAGS = "$(inherited)  ";
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
 				USE_HERMES = true;
