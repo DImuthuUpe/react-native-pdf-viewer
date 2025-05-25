@@ -6,7 +6,7 @@ import Animated, { useDerivedValue, useSharedValue, withDecay } from "react-nati
 import RNFS from 'react-native-fs';
 import { NitroModules } from "react-native-nitro-modules";
 import { getPageTileFromCache, setPageTileInCache } from "./TileCache";
-const fileName = 'A17_FlightPlan.pdf';//tilevalidation.pdf 'uneven.pdf';//'A17_FlightPlan.pdf';//'sample.pdf'; // Relative to assets
+const fileName = 'sample.pdf';//tilevalidation.pdf 'uneven.pdf';//'A17_FlightPlan.pdf';//'sample.pdf'; // Relative to assets
 let filePath = '';
 
 if (Platform.OS === 'ios') {
@@ -104,8 +104,7 @@ const NewPdfViewer = () => {
         }
 
         //console.log("Get tile from pdfium page: " + page + " row: " + row + " col: " + col + " zoomFactor: " + zoomFactor);
-        const pageWidth = pageDimsUI.value[page][0] * 2;
-        const pageHeight = pageDimsUI.value[page][1];
+        const pageWidth = pageDimsUI.value[page][0] * scaleVal.value;
     
         const tileStartX = col * TILE_SIZE;
         const tileEndX = (col + 1) * TILE_SIZE;
@@ -200,7 +199,7 @@ const NewPdfViewer = () => {
             const pageHeight = pageDim[1] * (pinchInProgress ? scale : 1);
             const aggregatedHeight = pageDim[2] * (pinchInProgress ? scale : 1); // till the end of the page
 
-            if (row > 2 || col !== 1) {
+            if (row !== 0 || col !== 2) {
                 //return;
             }
         
@@ -353,9 +352,11 @@ const NewPdfViewer = () => {
                //continue;
             }
 
+            console.log("Page tile: " + pageNum + " tileX: " + pageTileX + " tileY: " + pageTileY);
             const pageTile = getTileFromPdfium(pageNum, pageTileY, pageTileX, 2 * (pinchInProgress ? 1 : scale));
 
             if (pageTile == null) {
+                console.log("Page tile is null: " + pageNum + " tileX: " + pageTileX + " tileY: " + pageTileY);
                 return null;
             }
             canvas.save();
