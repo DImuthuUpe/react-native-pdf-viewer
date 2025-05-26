@@ -2,11 +2,11 @@ import { AlphaType, Canvas, ColorType, Group, Image, Matrix4, multiply4, Rect, s
 import { Dimensions, Platform, StyleSheet, View } from "react-native";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import { PdfiumModule } from "react-native-pdfium";
-import Animated, { useDerivedValue, useSharedValue, withDecay } from "react-native-reanimated";
+import Animated, { createWorkletRuntime, useDerivedValue, useSharedValue, withDecay } from "react-native-reanimated";
 import RNFS from 'react-native-fs';
 import { NitroModules } from "react-native-nitro-modules";
-import { clearOutofScaleAllTiles, cleanUpOutofScaleTiles, getTileFromCache, setTileInCache, getGlobalTileFromCache, setGlobalTileInCache, clearGlobalTileCache } from "./TileCache";
-const fileName = 'A17_FlightPlan.pdf';//'uneven.pdf';//'A17_FlightPlan.pdf';//'sample.pdf'; // Relative to assets
+import { clearOutofScaleAllTiles, cleanUpOutofScalePageTiles, getPageTileFromCache, setPageTileInCache, getGridTileFromCache, setGridTileInCache, clearGridTileCache, printGridTileCacheEntries, printPageTileCacheEntries, clearOutOfScaleTilesForOffset } from "./TileCache";
+const fileName = 'sample.pdf';//'uneven.pdf';//'A17_FlightPlan.pdf';//'sample.pdf'; // Relative to assets
 let filePath = '';
 
 if (Platform.OS === 'ios') {
@@ -23,7 +23,7 @@ if (Platform.OS === 'ios') {
 }
 
 
-const boxedPdfium = NitroModules.box(PdfiumModule)
+const boxedPdfium = NitroModules.box(PdfiumModule);
 PdfiumModule.openPdf(filePath);
 
 const { width: stageWidth, height: stageHeight } = Dimensions.get('screen');
@@ -32,7 +32,7 @@ const {width: windowWidth, height: windowHeight} = Dimensions.get('window');
 const TILE_SIZE = 256;
 
 const verticalTiles = Math.ceil(windowHeight / TILE_SIZE) * 2;
-const horizontalTiles = Math.ceil(windowWidth / TILE_SIZE) + 1;
+const horizontalTiles = Math.ceil(windowWidth / TILE_SIZE) - 1;
 const canvasHeight = verticalTiles * TILE_SIZE;
 const canvasWidth = horizontalTiles * TILE_SIZE;
 
@@ -40,7 +40,7 @@ const PAGE_GAP = 10;
 const PAGE_COUNT = PdfiumModule.getPageCount();
 const PIXEL_ZOOM = 2;
 const MAX_SCALE = 2.9;
-const USE_BGR565 = false;
+const USE_BGR565 = true;
 
 const pageDims = PdfiumModule.getAllPageDimensions();
 
@@ -224,6 +224,8 @@ const PdfViewer = () => {
     "worklet";
     console.log("Resetting cache for scale: " + Math.ceil(lastScale));
     clearOutofScaleAllTiles(Math.ceil(lastScale));
+    //printGridTileCacheEntries();
+    //printPageTileCacheEntries();
   }
 
   const pinchGesture = Gesture.Pinch()
@@ -323,28 +325,22 @@ const PdfViewer = () => {
     "worklet";
 
     const gridLocation = `${col}-${row}`;
-    var img = getTileFromCache(pageNum, scale, gridLocation);
+    var img = getPageTileFromCache(pageNum, scale, gridLocation);
     if (img == null) {
       img = getTileFromPdfium(pageNum, row, col, PIXEL_ZOOM * Math.ceil(scale));
-      setTileInCache(pageNum, scale, gridLocation, img);
-      cleanUpOutofScaleTiles(pageNum, scale);
+      setPageTileInCache(pageNum, scale, gridLocation, img);
+      cleanUpOutofScalePageTiles(pageNum, scale);
     }
     return img;
   }
 
-  const getTileImage = (row: number, col: number, zoomFactor: number, yOff: number) => {
+  const getPageTile = (zoomFactor: number, row: number, col: number) => {
     "worklet";
-    yOff += 2048 + TILE_SIZE; // This is always base coordinate as it the scale is handled by outside
-    const canvasStart = yOff = -yOff;  
-    const scaledHeight = windowHeight / zoomFactor;
-    const canvasEnd = yOff + scaledHeight;
-    if ((row - 1) * TILE_SIZE > canvasEnd || (row + 1) * TILE_SIZE < canvasStart) {
-      zoomFactor = 1;
-    }
 
-    const cacheImg = getGlobalTileFromCache(zoomFactor, row, col);
+    const cacheImg = getGridTileFromCache(zoomFactor, row, col);
     if (cacheImg != null) {
-      return cacheImg;
+        console.log("Cache hit: scale " + zoomFactor + " row " + row + " col " + col);
+        return cacheImg;
     }
 
     if (global.offscreens == null) {
@@ -392,20 +388,51 @@ const PdfViewer = () => {
     // Draw the gaps in the tile
     const gap = gapsInTileUIThread.value[row];
     if (gap[0] !== -1) {
-        canvas.save();  
+        canvas.save();
         const linePaint  = Skia.Paint();
         linePaint.setColor(Skia.Color('red'));
         linePaint.setStrokeWidth(PAGE_GAP);
         canvas.drawLine(0, gap[0] * zoomFactor * 2 , TILE_SIZE * zoomFactor * 2, gap[0] * zoomFactor * 2, linePaint);
-        console.log("Gap Y: " + gap[0] + " Tile Y: " + row);
+        //console.log("Gap Y: " + gap[0] + " Tile Y: " + row);
         canvas.restore();
     }
 
     const img = offscreen.makeImageSnapshot();
     //offscreen.dispose();
-    setGlobalTileInCache(zoomFactor, row, col, img);
-    clearGlobalTileCache(zoomFactor, row, col, verticalTiles);
+    setGridTileInCache(zoomFactor, row, col, img);
     return img;
+  }
+
+  const getTileImage = (row: number, col: number, zoomFactor: number, yOff: number) => {
+    "worklet";
+
+    yOff += 2048 + TILE_SIZE; // This is always base coordinate as it the scale is handled by outside
+    const canvasStart = yOff = -yOff;
+    const scaledHeight = windowHeight / zoomFactor;
+    const canvasEnd = yOff + scaledHeight;
+    if ((row - 1) * TILE_SIZE > canvasEnd || (row + 1) * TILE_SIZE < canvasStart) {
+      zoomFactor = 1;
+    }
+
+    //if (row >= 2) {
+    //    zoomFactor = 1;
+    //}
+
+    console.log("Row: " + row + " Col: " + col + " YOff: " + yOff + " Zoom: " + zoomFactor);
+    //global.queueMicrotask(() => {
+    if (zoomFactor > 1) {
+        clearOutOfScaleTilesForOffset(zoomFactor, yOff, TILE_SIZE, windowHeight);
+    }
+    //});
+    //console.log("Row: " + row + " YOff: " + yOff);
+
+    const cacheImg = getGridTileFromCache(zoomFactor, row, col);
+    if (cacheImg != null) {
+        //console.log("Cache hit: scale " + zoomFactor + " row " + row + " col " + col);
+        return cacheImg;
+    }
+
+    return getPageTile(zoomFactor, row, col);
   }
 
 
