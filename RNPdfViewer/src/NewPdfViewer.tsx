@@ -154,7 +154,7 @@ const NewPdfViewer = () => {
           return null;
         }
         const canvas = offscreen.getCanvas();
-        canvas.clear(Skia.Color('black'));
+        canvas.clear(Skia.Color('transparent'));
     
         canvas.drawImage(img as SkImage, 0, 0);
         const offImg = offscreen.makeImageSnapshot();
@@ -199,56 +199,68 @@ const NewPdfViewer = () => {
             const pageHeight = pageDim[1] * (pinchInProgress ? scale : 1);
             const aggregatedHeight = pageDim[2] * (pinchInProgress ? scale : 1); // till the end of the page
 
-            if (row !== 0 || col !== 2) {
+            if (row !== 1 || col !== 2 || pageNum !== 0) {
                 //return;
             }
         
             const verticalTileData: [number, number][] = [];
             
-            if ((realOffsetX + effectiveTileSize <= pageWidth) && 
-                realOffsetX >= 0 ) {
-                    const ledtTileIdX = Math.floor(realOffsetX / effectiveTileSize);
-                    const translationX = realOffsetX - ledtTileIdX * effectiveTileSize;
+            //console.log("Processing tile: " + row + " col: " + col + " pageNum: " + pageNum + " realOffsetX: " + realOffsetX + " realOffsetY: " + realOffsetY);
+            //console.log("Effective tile size: " + effectiveTileSize + " pageWidth: " + pageWidth + " pageHeight: " + pageHeight);
 
-                    const rightTileIdX = ledtTileIdX + 1;
-                    const translationX2 = effectiveTileSize - translationX;
 
-                    verticalTileData.push([ledtTileIdX, translationX]);
-                    verticalTileData.push([rightTileIdX, -translationX2]);
+            if ((realOffsetX + effectiveTileSize <= pageWidth) && realOffsetX >= 0 ) {
+
+                //console.log("Step 1");
+                const ledtTileIdX = Math.floor(realOffsetX / effectiveTileSize);
+                const translationX = realOffsetX - ledtTileIdX * effectiveTileSize;
+
+                const rightTileIdX = ledtTileIdX + 1;
+                const translationX2 = effectiveTileSize - translationX;
+
+                verticalTileData.push([ledtTileIdX, translationX]);
+                verticalTileData.push([rightTileIdX, -translationX2]);
             } 
 
-            if ( realOffsetX < pageWidth
-                && realOffsetX + effectiveTileSize > pageWidth) {
+            if ( realOffsetX < pageWidth && realOffsetX + effectiveTileSize > pageWidth) {
+                //console.log("Step 2");
+                const leftTileIdX = Math.floor(realOffsetX / effectiveTileSize);
+                const translationX = realOffsetX - leftTileIdX * effectiveTileSize;
 
-               const leftTileIdX = Math.floor(realOffsetX / effectiveTileSize);
-               const translationX = realOffsetX - leftTileIdX * effectiveTileSize;
+                verticalTileData.push([leftTileIdX, translationX]);
 
-               verticalTileData.push([leftTileIdX, translationX]);
+                if ((TILE_SIZE - translationX) + realOffsetX < pageWidth) { // Last partial tile of the page end
+                    verticalTileData.push([leftTileIdX + 1, -(effectiveTileSize - translationX)]);
+                }
+            }
 
-               if ((TILE_SIZE - translationX) + realOffsetX < pageWidth) { // Last partial tile of the page end
-                   verticalTileData.push([leftTileIdX + 1, -(effectiveTileSize - translationX)]);
-               }
+            if (realOffsetX + TILE_SIZE >= 0 && realOffsetX < -effectiveTileSize) {
+                //console.log("Step 3.1");
+                const leftTileIdX = Math.ceil(realOffsetX / effectiveTileSize);
+                const translationX = realOffsetX - leftTileIdX * effectiveTileSize;
+                const rightTileIdX = leftTileIdX + 1;
+                const translationX2 = effectiveTileSize - translationX;
+                verticalTileData.push([rightTileIdX, -translationX2]);
             }
 
             if (realOffsetX + effectiveTileSize >= 0 && realOffsetX < 0) {
-                
+                //console.log("Step 3");
                 const leftTileIdX = Math.floor(realOffsetX / effectiveTileSize);
                 const translationX = realOffsetX - leftTileIdX * effectiveTileSize;
                 const rightTileIdX = leftTileIdX + 1;
                 const translationX2 = effectiveTileSize - translationX;
 
                 verticalTileData.push([rightTileIdX, -translationX2]);
-            
 
                 if (effectiveTileSize + translationX2 < TILE_SIZE) { // This is for Zoom < 0 and zooming state. This makes sure that 2 bottom tiles are added
                     verticalTileData.push([rightTileIdX + 1, -(effectiveTileSize + translationX2)]);
                 }
             }
 
-            
+
             if ((realOffsetY + effectiveTileSize <= aggregatedHeight * (pinchInProgress ? 1 : scale)) && 
                 (realOffsetY >= (aggregatedHeight - pageHeight) * (pinchInProgress ? 1 : scale) )) {
-            
+
                 const localTileOffsetY = realOffsetY - (aggregatedHeight - pageHeight) * (pinchInProgress ? 1 : scale);
                 const topTileIdY = Math.floor(localTileOffsetY / effectiveTileSize);
                 const translationY = localTileOffsetY - topTileIdY * effectiveTileSize;
@@ -256,7 +268,7 @@ const NewPdfViewer = () => {
                 for (let i = 0; i < verticalTileData.length; i++) {
                     tilesAndOffsets.push([pageNum, topTileIdY, translationY * 2, verticalTileData[i][0], verticalTileData[i][1] * 2]);
                 }
-            
+
 
                 const bottomTileIdY = topTileIdY + 1;
                 const translationY2 = effectiveTileSize - translationY;
@@ -264,8 +276,8 @@ const NewPdfViewer = () => {
                 for (let i = 0; i < verticalTileData.length; i++) {
                     tilesAndOffsets.push([pageNum, bottomTileIdY, -translationY2 * 2, verticalTileData[i][0], verticalTileData[i][1]  * 2]);
                 }
-                
-            
+
+
                 if (translationY + translationY2 < TILE_SIZE) { // This is for Zoom < 0 and zooming state. This makes sure that 3 rd tile is added to bottom
                     for (let i = 0; i < verticalTileData.length; i++) {
                         tilesAndOffsets.push([pageNum, bottomTileIdY + 1, -(effectiveTileSize + translationY2) * 2, verticalTileData[i][0], verticalTileData[i][1] * 2]);
@@ -352,11 +364,10 @@ const NewPdfViewer = () => {
                //continue;
             }
 
-            console.log("Page tile: " + pageNum + " tileX: " + pageTileX + " tileY: " + pageTileY);
+            //console.log("Page tile page: " + pageNum + " tileX: " + pageTileX + " transX " + translationX + " tileY: " + pageTileY + " transY: " + translationY);
             const pageTile = getTileFromPdfium(pageNum, pageTileY, pageTileX, 2 * (pinchInProgress ? 1 : scale));
 
             if (pageTile == null) {
-                console.log("Page tile is null: " + pageNum + " tileX: " + pageTileX + " tileY: " + pageTileY);
                 return null;
             }
             canvas.save();
