@@ -1,4 +1,4 @@
-import { AlphaType, Canvas, ColorType, Group, Image, Rect, SkCanvas, Skia, SkImage } from "@shopify/react-native-skia";
+import { AlphaType, Canvas, Circle, ColorType, Group, Image, PaintStyle, Rect, SkCanvas, Skia, SkImage } from "@shopify/react-native-skia";
 import { Dimensions, Platform, StyleSheet, View } from "react-native";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import { PdfiumModule } from "react-native-pdfium";
@@ -53,7 +53,6 @@ const NewPdfViewer = () => {
     const origin = useSharedValue({ x: 0, y: 0 });
     const pageDimsUI = useSharedValue(pageDims);
     const pinchInProgress = useSharedValue<boolean>(false);
-
 
     const panGesture = Gesture.Pan().onChange((e) => {
 
@@ -392,6 +391,53 @@ const NewPdfViewer = () => {
         return offImg;
     }
 
+    const drawAnnotations = (offsetX: number, offsetY: number, scale: number) => {
+        "worklet";
+        const offscreen = Skia.Surface.MakeOffscreen(
+            stageWidth,
+            stageHeight)!;
+        if (offscreen == null) {
+          return null;
+        }
+        const canvas: SkCanvas = offscreen.getCanvas();
+        canvas.clear(Skia.Color('transparent'));
+
+        const paint = Skia.Paint();
+        paint.setStyle(PaintStyle.Stroke);
+        paint.setColor(Skia.Color('black'));  // Set the color for the stroke (optional)
+        paint.setStrokeWidth(5); 
+
+        canvas.save();
+        canvas.translate(offsetX + 200 * scale, offsetY + 100 * scale);
+        canvas.scale(scale, scale);
+        canvas.drawCircle(
+            0,
+            0,
+            50,
+            paint
+        );
+        canvas.translate(0, 0);
+        canvas.restore();
+
+
+        paint.setColor(Skia.Color('red'));
+        paint.setStrokeWidth(3);  // Set the color for the stroke (optional)
+        canvas.save();
+        canvas.translate(offsetX + 100 * scale, offsetY + 100 * scale);
+        canvas.scale(scale, scale);
+        canvas.drawPath(
+            Skia.Path.MakeFromSVGString('M 100 100 L 200 200 L 300 100 Z')!,
+            paint
+        );
+        canvas.restore();
+
+        
+
+        const offImg = offscreen.makeImageSnapshot();
+        offscreen.dispose();
+        return offImg;
+    }
+    
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>
           <View style={{ flex: 1 }}>
@@ -427,6 +473,8 @@ const NewPdfViewer = () => {
                     );
                   });
               })}
+              <Image x={0} y={0} width={stageWidth} height={stageHeight}
+                image={useDerivedValue(() => drawAnnotations(offsetX.value, offsetY.value, scaleVal.value))}/>
               </Group>
             </Canvas>
             <GestureDetector gesture={Gesture.Race(panGesture, pinchGesture)}>
