@@ -219,6 +219,10 @@ const NewPdfViewer = () => {
 
                 verticalTileData.push([ledtTileIdX, translationX]);
                 verticalTileData.push([rightTileIdX, -translationX2]);
+
+                if (translationX + translationX2 < TILE_SIZE) { // This is for Zoom < 0 and zooming state. This makes sure that 3 rd tile is added to bottom
+                    verticalTileData.push([rightTileIdX + 1, -(effectiveTileSize + translationX2)]);
+                }
             } 
 
             if ( realOffsetX < pageWidth && realOffsetX + effectiveTileSize > pageWidth) {
@@ -228,7 +232,13 @@ const NewPdfViewer = () => {
 
                 verticalTileData.push([leftTileIdX, translationX]);
 
+                if ((effectiveTileSize - translationX) + realOffsetX < pageWidth ) { // Last partial tile of the page end
+                    //console.log("Step 2.1");
+                    verticalTileData.push([leftTileIdX + 1, -(effectiveTileSize - translationX)]);
+                }
+
                 if ((TILE_SIZE - translationX) + realOffsetX < pageWidth) { // Last partial tile of the page end
+                    //console.log("Step 2.2");
                     verticalTileData.push([leftTileIdX + 1, -(effectiveTileSize - translationX)]);
                 }
             }

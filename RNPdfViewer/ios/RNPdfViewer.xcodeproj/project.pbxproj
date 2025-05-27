@@ -13,6 +13,7 @@
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
 		E44B85492DE21A680071E4C9 /* borderless.pdf in Resources */ = {isa = PBXBuildFile; fileRef = E44B85482DE21A680071E4C9 /* borderless.pdf */; };
+		E44B854D2DE4E7680071E4C9 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E44B854C2DE4E7680071E4C9 /* Assets.xcassets */; };
 		E452FB072D4E25F900CFAB4B /* sample.pdf in Resources */ = {isa = PBXBuildFile; fileRef = E452FB062D4E25F900CFAB4B /* sample.pdf */; };
 		E48B1B4D2DDBB635008E2C1E /* tilevalidation.pdf in Resources */ = {isa = PBXBuildFile; fileRef = E48B1B4C2DDBB635008E2C1E /* tilevalidation.pdf */; };
 		E4DAA81A2D6CABE100943979 /* A17_FlightPlan.pdf in Resources */ = {isa = PBXBuildFile; fileRef = E4DAA8192D6CABE000943979 /* A17_FlightPlan.pdf */; };
@@ -30,6 +31,7 @@
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = RNPdfViewer/AppDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = RNPdfViewer/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		E44B85482DE21A680071E4C9 /* borderless.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; name = borderless.pdf; path = ../examples/borderless.pdf; sourceTree = SOURCE_ROOT; };
+		E44B854C2DE4E7680071E4C9 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		E452FB062D4E25F900CFAB4B /* sample.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = sample.pdf; sourceTree = "<group>"; };
 		E48B1B4C2DDBB635008E2C1E /* tilevalidation.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; name = tilevalidation.pdf; path = ../examples/tilevalidation.pdf; sourceTree = SOURCE_ROOT; };
 		E4DAA8192D6CABE000943979 /* A17_FlightPlan.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = A17_FlightPlan.pdf; sourceTree = "<group>"; };
@@ -81,6 +83,7 @@
 		83CBB9F61A601CBA00E9B192 = {
 			isa = PBXGroup;
 			children = (
+				E44B854C2DE4E7680071E4C9 /* Assets.xcassets */,
 				E44B85482DE21A680071E4C9 /* borderless.pdf */,
 				E48B1B4C2DDBB635008E2C1E /* tilevalidation.pdf */,
 				E4DAA8192D6CABE000943979 /* A17_FlightPlan.pdf */,
@@ -180,6 +183,7 @@
 				81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */,
 				E4DAA81A2D6CABE100943979 /* A17_FlightPlan.pdf in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
+				E44B854D2DE4E7680071E4C9 /* Assets.xcassets in Resources */,
 				2149EF818B4694188961E186 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
