@@ -107,9 +107,7 @@ const NewPdfViewer = () => {
     
         const tileStartX = col * TILE_SIZE;
         const tileEndX = (col + 1) * TILE_SIZE;
-        const tileWidth = pageWidth > tileEndX ?
-          TILE_SIZE * 2: tileStartX > pageWidth ?
-          0 : Math.ceil(pageWidth - tileStartX) * 2;
+        const tileWidth = TILE_SIZE * 2;//pageWidth > tileEndX ? TILE_SIZE * 2: tileStartX > pageWidth ? 0 : Math.ceil(pageWidth - tileStartX) * 2;
     
         if (tileWidth === 0) {
           return null;
