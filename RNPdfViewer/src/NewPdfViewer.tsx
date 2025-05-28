@@ -36,11 +36,11 @@ const horizontalTiles = Math.ceil(windowWidth / TILE_SIZE);
 const canvasHeight = verticalTiles * TILE_SIZE;
 const canvasWidth = horizontalTiles * TILE_SIZE;
 
-const PAGE_GAP = 10;
+const PAGE_GAP = 32;
 const PAGE_COUNT = PdfiumModule.getPageCount();
 const PIXEL_ZOOM = 2;
 const MAX_SCALE = 3.5;
-const MIN_SCALE = 0.6;
+const MIN_SCALE = 0.5;
 const USE_BGR565 = false;
 
 const pageDims = PdfiumModule.getAllPageDimensions();
@@ -94,7 +94,7 @@ const NewPdfViewer = () => {
         global.gc();
     });
     
-    const getTileFromPdfium = (page: number, row: number, col: number, zoomFactor: number) => {
+    const getTileFromPdfium = (page: number, row: number, col: number, zoomFactor: number, scale: number) => {
         "worklet";
     
         const pageTileCache = getPageTileFromCache(page, zoomFactor, row + '_' + col);
@@ -102,16 +102,7 @@ const NewPdfViewer = () => {
             return pageTileCache;
         }
 
-        //console.log("Get tile from pdfium page: " + page + " row: " + row + " col: " + col + " zoomFactor: " + zoomFactor);
-        const pageWidth = pageDimsUI.value[page][0] * scaleVal.value;
-    
-        const tileStartX = col * TILE_SIZE;
-        const tileEndX = (col + 1) * TILE_SIZE;
-        const tileWidth = TILE_SIZE * 2;//pageWidth > tileEndX ? TILE_SIZE * 2: tileStartX > pageWidth ? 0 : Math.ceil(pageWidth - tileStartX) * 2;
-    
-        if (tileWidth === 0) {
-          return null;
-        }
+        const tileWidth = TILE_SIZE * 2;
         
         const tileHeight = TILE_SIZE * 2;
     
@@ -196,7 +187,7 @@ const NewPdfViewer = () => {
             const pageHeight = pageDim[1] * (pinchInProgress ? scale : 1);
             const aggregatedHeight = pageDim[2] * (pinchInProgress ? scale : 1); // till the end of the page
 
-            if (row !== 1 || col !== 2 || pageNum !== 0) {
+            if (row !== 0 || col > 2 || pageNum !== 0) {
                 //return;
             }
         
@@ -367,34 +358,65 @@ const NewPdfViewer = () => {
             const pageTileX = tilesAndOffsets[i][3];
             const translationX = tilesAndOffsets[i][4];
 
-            if (pageTileX < 0 || pageTileX > pageDimsUI.value[pageNum][0] * (pinchInProgress ? 1 : scale) / TILE_SIZE) {
-               //continue;
-            }
-
-            //console.log("Page tile page: " + pageNum + " tileX: " + pageTileX + " transX " + translationX + " tileY: " + pageTileY + " transY: " + translationY);
-            const pageTile = getTileFromPdfium(pageNum, pageTileY, pageTileX, 2 * (pinchInProgress ? 1 : scale));
+            const pageTile = getTileFromPdfium(pageNum, pageTileY, pageTileX, 2 * (pinchInProgress ? 1 : scale), scale);
 
             if (pageTile == null) {
                 return null;
             }
-            canvas.save();
 
+            canvas.save();
             canvas.translate(-translationX, -translationY);
             canvas.scale((pinchInProgress ? scale : 1), (pinchInProgress ? scale : 1));
-
             canvas.drawImage(pageTile as SkImage, 0, 0);
             canvas.restore();
+
+            const pageWidth = pageDimsUI.value[pageNum][0] * scale;
+            const pageHeight = pageDimsUI.value[pageNum][1] * scale;
+            const aggregatedHeight = pageDimsUI.value[pageNum][2] * scale;
+            const tileStartX = col * TILE_SIZE + offsetX;
+            const tileEndX = (col + 1) * TILE_SIZE  + offsetX;
+            const tileStartY = row * TILE_SIZE + offsetY;
+            const tileEndY = (row + 1) * TILE_SIZE + offsetY;
+
+            const verticalPaint = Skia.Paint();
+            verticalPaint.setStrokeWidth(PAGE_GAP * scale);
+            verticalPaint.setColor(Skia.Color('lightgrey'));
+
+            const horizontalCutoffLineBottom = aggregatedHeight - tileStartY;
+            const horizontalCutoffLineTop =  TILE_SIZE - (tileEndY - (aggregatedHeight - pageHeight));
+            
+            if (horizontalCutoffLineBottom > 0 && horizontalCutoffLineBottom <= TILE_SIZE) {
+                canvas.drawRect(
+                    Skia.XYWHRect(0,
+                        horizontalCutoffLineBottom * 2, 
+                        TILE_SIZE * 2, 
+                        (TILE_SIZE - horizontalCutoffLineBottom) * 2), 
+                        verticalPaint
+                );
+
+                // Page seperation line
+                canvas.drawLine(0, 
+                    horizontalCutoffLineBottom * 2, 
+                    TILE_SIZE * 2, 
+                    horizontalCutoffLineBottom * 2, 
+                    verticalPaint);
+            }
+            if (tileStartX < pageWidth && tileEndX > pageWidth) {
+                const cutoffLine = pageWidth - tileStartX;
+                canvas.drawRect(
+                    Skia.XYWHRect(cutoffLine * 2, 
+                        Math.max(horizontalCutoffLineTop, 0) * 2, 
+                        TILE_SIZE * 2, 
+                        Math.min(horizontalCutoffLineBottom, TILE_SIZE) * 2),
+                    verticalPaint
+                );
+            }
         }
 
-        //canvas.save(); // Example annotation
-        //canvas.drawCircle(100 - offsetX * 2, 100 - offsetY * 2, 50, Skia.Paint());
-
         const offImg = offscreen.makeImageSnapshot();
-        //pageTile?.dispose();
         gcCycleCounter.value++;
         if (gcCycleCounter.value % 100 === 0) {
             global.gc();
-            //console.log("GC cycle: " + gcCycleCounter.value);
         }
         return offImg;
     }
@@ -453,7 +475,7 @@ const NewPdfViewer = () => {
             style={{
               width: stageWidth,
               height: stageHeight,
-              backgroundColor: 'lightblue',
+              backgroundColor: 'lightgrey',
             }}
             >
               <Group>
@@ -461,7 +483,7 @@ const NewPdfViewer = () => {
                 return [...Array(verticalTiles).keys()].map((verticalTileId) => {
                   return (
                     <Group>
-                    <Rect 
+                    {/* <Rect 
                      x={useDerivedValue(() => horizontalTileId * TILE_SIZE)}
                      y={useDerivedValue(() =>  verticalTileId * TILE_SIZE)}
                     color={"black"}
@@ -469,7 +491,7 @@ const NewPdfViewer = () => {
                     style={"stroke"}
                     width={useDerivedValue(() => TILE_SIZE )}
                     height={useDerivedValue(() => TILE_SIZE)}
-                        />
+                        /> */}
                     <Image
                     x={useDerivedValue(() => horizontalTileId * TILE_SIZE)}
                     y={useDerivedValue(() =>  verticalTileId * TILE_SIZE)}
